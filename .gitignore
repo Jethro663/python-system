@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Frontend dependencies/build
+frontend/node_modules/
+frontend/dist/
+
+# Runtime artifacts/logs
+*.log
+backend/*.log
+frontend/*.log
+backend/database.db
+backend/instance/
+backend/uploads/
+
+# Env files
+backend/.env
+
+# Local temp/debug
+.tmp-pytest/
