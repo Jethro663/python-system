@@ -5,6 +5,7 @@ from extensions import db
 from models import (
     Announcement,
     Assignment,
+    AssignmentQuestion,
     CalendarEvent,
     DiscussionReply,
     DiscussionThread,
@@ -16,6 +17,7 @@ from models import (
     Role,
     Section,
     SectionTeacher,
+    StudentProfile,
     Submission,
     User,
 )
@@ -157,6 +159,64 @@ def test_student_dashboard_returns_enrollments_results_and_intervention_flag():
     assert body["summary"]["published_assignments"] == 1
     assert body["summary"]["intervention_required"] is True
     assert body["sections"][0]["name"] == "Section A"
+
+
+def test_student_can_update_profile_and_password():
+    app = create_app(
+        {"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"}
+    )
+
+    with app.app_context():
+        db.create_all()
+        student = create_user("student", "student@example.com", "S-001")
+        db.session.add(
+            StudentProfile(
+                user_id=student.id,
+                grade_level="Grade 9",
+                guardian_name="Original Guardian",
+                guardian_contact="old@example.com",
+            )
+        )
+        db.session.commit()
+
+    client = app.test_client()
+    login_as(client, "student@example.com")
+
+    profile_response = client.get("/api/student/profile")
+    assert profile_response.status_code == 200
+    assert profile_response.get_json()["profile"]["guardian_name"] == "Original Guardian"
+
+    update_response = client.put(
+        "/api/student/profile",
+        json={
+            "first_name": "Updated",
+            "last_name": "Learner",
+            "school_id": "S-UPDATED",
+            "email": "student.updated@example.com",
+            "grade_level": "Grade 10",
+            "guardian_name": "Updated Guardian",
+            "guardian_contact": "guardian@example.com",
+        },
+    )
+    assert update_response.status_code == 200
+    updated = update_response.get_json()["profile"]
+    assert updated["full_name"] == "Updated Learner"
+    assert updated["email"] == "student.updated@example.com"
+    assert updated["grade_level"] == "Grade 10"
+    assert updated["guardian_contact"] == "guardian@example.com"
+
+    password_response = client.post(
+        "/api/student/profile/password",
+        json={"current_password": "Test@123", "new_password": "NewStudent123!"},
+    )
+    assert password_response.status_code == 200
+
+    client.post("/api/auth/logout")
+    login_response = client.post(
+        "/api/auth/login",
+        json={"email": "student.updated@example.com", "password": "NewStudent123!"},
+    )
+    assert login_response.status_code == 200
 
 
 def test_student_classroom_returns_modules_resources_announcements_calendar_and_results():
@@ -380,6 +440,110 @@ def test_student_can_submit_assignment_and_see_remedial_access():
     assert assignment["submission_status"] == "submitted"
     assert assignment["submission"]["uploaded_file_path"] == "/uploads/remedial-quiz.pdf"
     assert assignment["remedial_access"] is True
+
+
+def test_student_can_answer_question_assessment_and_teacher_sees_result():
+    app = create_app(
+        {"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"}
+    )
+
+    with app.app_context():
+        db.create_all()
+        teacher = create_user("teacher", "teacher@example.com", "T-001")
+        student = create_user("student", "student@example.com", "S-001")
+        section = Section(
+            name="Section Assessment",
+            grade_level="Grade 10",
+            school_year="2026-2027",
+            adviser_user_id=teacher.id,
+            status="active",
+        )
+        db.session.add(section)
+        db.session.flush()
+        db.session.add(
+            SectionTeacher(
+                section_id=section.id,
+                teacher_user_id=teacher.id,
+                subject_name="Mathematics",
+            )
+        )
+        db.session.add(
+            Enrollment(section_id=section.id, student_user_id=student.id, status="active")
+        )
+        assignment = Assignment(
+            section_id=section.id,
+            teacher_user_id=teacher.id,
+            title="Readiness Check",
+            type="quiz",
+            instructions="Answer all items.",
+            status="published",
+        )
+        db.session.add(assignment)
+        db.session.flush()
+        first_question = AssignmentQuestion(
+            assignment_id=assignment.id,
+            question_text="What is 2 + 2?",
+            question_type="multiple_choice",
+            choices_json=["3", "4", "5"],
+            answer_key="4",
+            points=5,
+            sort_order=1,
+        )
+        second_question = AssignmentQuestion(
+            assignment_id=assignment.id,
+            question_text="Type blue.",
+            question_type="short_answer",
+            answer_key="blue",
+            points=5,
+            sort_order=2,
+        )
+        db.session.add_all([first_question, second_question])
+        db.session.commit()
+        section_id = section.id
+        assignment_id = assignment.id
+        first_question_id = first_question.id
+        second_question_id = second_question.id
+
+    client = app.test_client()
+    login_as(client, "student@example.com")
+
+    classroom_response = client.get(f"/api/student/classes/{section_id}")
+    assert classroom_response.status_code == 200
+    classroom_assignment = classroom_response.get_json()["classroom"]["assignments"][0]
+    assert classroom_assignment["questions"][0]["question_text"] == "What is 2 + 2?"
+    assert "answer_key" not in classroom_assignment["questions"][0]
+
+    submit_response = client.post(
+        f"/api/student/classes/{section_id}/assignments/{assignment_id}/submit",
+        json={
+            "responses": {
+                str(first_question_id): "4",
+                str(second_question_id): "blue",
+            }
+        },
+    )
+    assert submit_response.status_code == 200
+    submitted = submit_response.get_json()["submission"]
+    assert submitted["status"] == "graded"
+    assert submitted["final_score"] == 100.0
+    assert submitted["responses"][0]["is_correct"] is True
+
+    results_response = client.get("/api/student/results")
+    assert results_response.status_code == 200
+    result = results_response.get_json()["results"][0]
+    assert result["assignment_title"] == "Readiness Check"
+    assert result["percentage"] == 100.0
+    assert result["submission_status"] == "graded"
+
+    login_as(client, "teacher@example.com")
+    teacher_workspace_response = client.get(f"/api/teacher/classes/{section_id}")
+    assert teacher_workspace_response.status_code == 200
+    teacher_submission = teacher_workspace_response.get_json()["classroom"]["submissions"][0]
+    assert teacher_submission["assignment_title"] == "Readiness Check"
+    assert teacher_submission["student_name"] == "Student User"
+    assert teacher_submission["status"] == "graded"
+    assert teacher_submission["final_score"] == 100.0
+    assert teacher_submission["responses"][1]["answer"] == "blue"
 
 
 def test_student_resubmission_clears_stale_grading_state_until_teacher_reviews_again():

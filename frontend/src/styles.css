@@ -2987,8 +2987,153 @@ body {
   color: #166534;
 }
 
+.workspace-tabs {
+  display: flex;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding: 0.35rem 0.1rem 0.55rem;
+  scrollbar-width: thin;
+}
+
+.workspace-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.65rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--portal-border);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--portal-muted);
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.workspace-tab:hover,
+.workspace-tab--active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.workspace-tab--active {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px -22px rgba(37, 99, 235, 0.9);
+}
+
+.workspace-tab strong {
+  display: inline-grid;
+  min-width: 1.55rem;
+  height: 1.55rem;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: inherit;
+  font-size: 0.75rem;
+}
+
+.teacher-student-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.teacher-stack-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.teacher-stack-heading h3 {
+  margin: 0;
+}
+
+.module-reader {
+  display: grid;
+  gap: 1rem;
+  min-height: 24rem;
+  padding: 1.2rem;
+  border: 1px solid var(--portal-border);
+  border-radius: 0.8rem;
+  background: #ffffff;
+  box-shadow: 0 18px 34px -28px rgba(15, 23, 42, 0.55);
+}
+
+.module-reader__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--portal-border);
+}
+
+.module-reader__header p {
+  margin: 0 0 0.25rem;
+  color: var(--portal-muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.module-reader__header h3 {
+  margin: 0;
+  color: var(--portal-text-strong);
+  font-size: clamp(1.4rem, 2vw, 2.2rem);
+  line-height: 1.15;
+}
+
+.module-reader__body {
+  max-width: 76ch;
+}
+
+.module-reader__body p {
+  margin: 0;
+  color: var(--portal-text-strong);
+  font-size: 1.05rem;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.module-reader__attachment {
+  display: grid;
+  gap: 0.35rem;
+  align-self: end;
+  padding: 0.9rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+
+.module-reader__attachment strong {
+  color: var(--portal-text-strong);
+}
+
+.module-reader__attachment a,
+.module-reader__attachment span {
+  color: var(--portal-muted);
+  overflow-wrap: anywhere;
+}
+
+.student-content-card--clickable .secondary-button {
+  justify-self: start;
+}
+
 .student-workspace-grid--feature {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.student-workspace-grid--feature > .student-section-card {
+  grid-column: 1 / -1;
+}
+
+.student-profile-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.2fr) minmax(20rem, 0.8fr);
 }
 
 .student-workspace-map {
@@ -3055,6 +3200,136 @@ body {
 
 .student-assignment-meta div {
   background: rgba(255, 255, 255, 0.78);
+}
+
+.student-assignment-result {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0.85rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.8rem;
+  background: #eff6ff;
+}
+
+.student-assignment-result div {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.student-assignment-result strong {
+  color: #1d4ed8;
+  font-size: 1.15rem;
+}
+
+.student-assignment-result span {
+  color: var(--portal-muted);
+}
+
+.student-assessment-question-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.student-assessment-question {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.student-assessment-question__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.student-assessment-question__header div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.student-assessment-question__header strong {
+  color: var(--portal-text-strong);
+  line-height: 1.4;
+}
+
+.student-assessment-question__header span {
+  color: var(--portal-muted);
+  text-transform: capitalize;
+}
+
+.student-answer-options {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.student-answer-option {
+  min-height: 2.7rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.65rem;
+  background: #ffffff;
+  color: var(--portal-text-strong);
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.student-answer-option:hover,
+.student-answer-option--selected {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.student-answer-option--selected {
+  transform: translateY(-1px);
+}
+
+.student-response-review {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.85rem;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.8rem;
+  background: #f0fdf4;
+}
+
+.student-response-review > strong {
+  color: #166534;
+}
+
+.student-response-review div {
+  display: grid;
+  gap: 0.2rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(22, 101, 52, 0.14);
+}
+
+.student-response-review div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.student-response-review span {
+  color: var(--portal-muted);
+}
+
+.student-response-review em {
+  color: var(--portal-text-strong);
+  font-style: normal;
+}
+
+.student-response-review b {
+  color: #166534;
+  font-size: 0.78rem;
+  text-transform: uppercase;
 }
 
 .student-result-grid {
@@ -4440,8 +4715,10 @@ body {
   .teacher-roster-card__metrics,
   .teacher-result-card__metrics,
   .student-assignment-meta,
+  .student-assignment-result,
   .teacher-intervention-card__body,
   .student-workspace-grid--feature,
+  .student-profile-grid,
   .student-result-card__signal-row,
   .student-result-card__metrics,
   .teacher-record-card__metrics,
@@ -4456,6 +4733,9 @@ body {
 
   .student-class-card__hero-top,
   .student-class-card__footer,
+  .student-assessment-question__header,
+  .module-reader__header,
+  .teacher-stack-heading,
   .admin-audit-card__header,
   .admin-calendar-card__header,
   .admin-report-card__header,

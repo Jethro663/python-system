@@ -17,6 +17,7 @@ import AdminUsersPage from "./pages/AdminUsersPage";
 import StudentClassesPage from "./pages/StudentClassesPage";
 import StudentClassWorkspacePage from "./pages/StudentClassWorkspacePage";
 import StudentHomePage from "./pages/StudentHomePage";
+import StudentProfilePage from "./pages/StudentProfilePage";
 import StudentResultsPage from "./pages/StudentResultsPage";
 import TeacherCalendarPage from "./pages/TeacherCalendarPage";
 import TeacherClassesPage from "./pages/TeacherClassesPage";
@@ -275,6 +276,14 @@ export default function App() {
         element={
           <ProtectedRoute allowedRoles={["student"]}>
             <StudentResultsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/profile"
+        element={
+          <ProtectedRoute allowedRoles={["student"]}>
+            <StudentProfilePage />
           </ProtectedRoute>
         }
       />

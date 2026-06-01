@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import csv
 import io
+import json
 
 from flask import Blueprint, Response, current_app, jsonify, request
 from flask_login import current_user
@@ -131,9 +132,49 @@ def _serialize_assignment_question(question):
     }
 
 
+def _parse_submission_response_payload(submission):
+    if not submission or not submission.response_text:
+        return None
+
+    try:
+        payload = json.loads(submission.response_text)
+    except (TypeError, ValueError):
+        return None
+
+    if isinstance(payload, dict) and payload.get("kind") == "question_responses":
+        return payload
+
+    return None
+
+
+def _answer_to_text(value):
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _submission_response_summary(response_payload):
+    if not response_payload:
+        return None
+    if response_payload.get("summary"):
+        return response_payload["summary"]
+
+    lines = []
+    for response in response_payload.get("responses", []):
+        if not isinstance(response, dict):
+            continue
+        question_text = response.get("question_text") or f"Question {response.get('question_id')}"
+        lines.append(f"{question_text}: {_answer_to_text(response.get('answer'))}")
+
+    return "\n".join(lines) if lines else None
+
+
 def _serialize_submission(submission):
     student = db.session.get(User, submission.student_user_id)
     assignment = db.session.get(Assignment, submission.assignment_id)
+    response_payload = _parse_submission_response_payload(submission)
     return {
         "id": submission.id,
         "assignment_id": submission.assignment_id,
@@ -142,7 +183,11 @@ def _serialize_submission(submission):
         "student_name": student.full_name if student else None,
         "submitted_at": submission.submitted_at.isoformat() if submission.submitted_at else None,
         "status": submission.status,
-        "response_text": submission.response_text,
+        "response_text": _submission_response_summary(response_payload)
+        if response_payload
+        else submission.response_text,
+        "response_payload": response_payload,
+        "responses": response_payload.get("responses", []) if response_payload else [],
         "uploaded_file_path": submission.uploaded_file_path,
         "raw_score": float(submission.raw_score) if submission.raw_score is not None else None,
         "final_score": float(submission.final_score) if submission.final_score is not None else None,

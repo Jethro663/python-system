@@ -379,6 +379,21 @@ export const studentApi = {
   dashboard() {
     return apiFetch("/api/student/dashboard");
   },
+  profile() {
+    return apiFetch("/api/student/profile");
+  },
+  updateProfile(payload) {
+    return apiFetch("/api/student/profile", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+  changeProfilePassword(payload) {
+    return apiFetch("/api/student/profile/password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
   classes() {
     return apiFetch("/api/student/classes");
   },

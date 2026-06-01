@@ -90,6 +90,7 @@ const NAV_SECTIONS = {
         { to: "/student", label: "Dashboard", icon: LayoutDashboard },
         { to: "/student/classes", label: "My Classes", icon: BookOpen },
         { to: "/student/results", label: "Results", icon: FileSpreadsheet },
+        { to: "/student/profile", label: "Profile", icon: User },
       ],
     },
   ],

@@ -54,7 +54,7 @@ def create_app(test_config=None):
     @app.cli.command("seed-defaults")
     def seed_defaults_command():
         seed_defaults()
-        print("Seeded roles, system settings, and bootstrap admin account.")
+        print("Seeded roles, system settings, demo accounts, and the demo class.")
 
     return app
 

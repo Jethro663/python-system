@@ -114,6 +114,19 @@ function buildDiscussionReplyForms(threads) {
   return next;
 }
 
+function moduleAttachmentHref(filePath) {
+  if (!filePath) {
+    return "";
+  }
+  if (/^https?:\/\//i.test(filePath)) {
+    return filePath;
+  }
+  if (filePath.startsWith("/")) {
+    return filePath;
+  }
+  return "";
+}
+
 export default function TeacherClassWorkspacePage() {
   const { sectionId } = useParams();
   const [classroom, setClassroom] = useState(null);
@@ -133,6 +146,8 @@ export default function TeacherClassWorkspacePage() {
   const [saving, setSaving] = useState(false);
   const [uploadingModule, setUploadingModule] = useState(false);
   const [moduleFile, setModuleFile] = useState(null);
+  const [activeTab, setActiveTab] = useState("assessments");
+  const [selectedModule, setSelectedModule] = useState(null);
 
   const loadWorkspace = async () => {
     try {
@@ -186,6 +201,16 @@ export default function TeacherClassWorkspacePage() {
     ],
     [classroom]
   );
+  const openInterventions = classroom?.interventions?.filter((item) => item.status === "open") || [];
+  const teacherTabs = [
+    { id: "overview", label: "Overview", count: classroom ? 1 : 0 },
+    { id: "assessments", label: "Assessments", count: classroom?.assignments?.length ?? 0 },
+    { id: "modules", label: "Modules", count: classroom?.modules?.length ?? 0 },
+    { id: "grades", label: "Grades", count: classroom?.submissions?.length ?? 0 },
+    { id: "students", label: "Students", count: classroom?.students?.length ?? 0 },
+    { id: "calendar", label: "Calendar", count: classroom?.calendar_events?.length ?? 0 },
+    { id: "updates", label: "Updates", count: (classroom?.announcements?.length ?? 0) + (classroom?.discussion_threads?.length ?? 0) },
+  ];
 
   return (
     <TeacherPageShell
@@ -216,6 +241,27 @@ export default function TeacherClassWorkspacePage() {
       {error ? <div className="form-error">{error}</div> : null}
       {success ? <div className="form-success">{success}</div> : null}
 
+      <div className="workspace-tabs" role="tablist" aria-label="Teacher class workspace filters">
+        {teacherTabs.map((tab) => (
+          <button
+            aria-selected={activeTab === tab.id}
+            className={`workspace-tab${activeTab === tab.id ? " workspace-tab--active" : ""}`}
+            key={tab.id}
+            onClick={() => {
+              setActiveTab(tab.id);
+              setSelectedModule(null);
+            }}
+            role="tab"
+            type="button"
+          >
+            <span>{tab.label}</span>
+            <strong>{tab.count}</strong>
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "overview" ? (
+      <>
       <TeacherSectionCard
         eyebrow="Workspace Map"
         title="Operating lanes for this class"
@@ -301,7 +347,10 @@ export default function TeacherClassWorkspacePage() {
           </article>
         </div>
       </TeacherSectionCard>
+      </>
+      ) : null}
 
+      {activeTab === "modules" ? (
       <TeacherSectionCard
         eyebrow="Content Authoring"
         title="Modules and assignments"
@@ -439,7 +488,43 @@ export default function TeacherClassWorkspacePage() {
 
         <div className="teacher-two-column">
           <div className="teacher-assignment-stack">
-            <h3>Existing modules</h3>
+            <div className="teacher-stack-heading">
+              <h3>{selectedModule ? selectedModule.title : "Existing modules"}</h3>
+              {selectedModule ? (
+                <button className="secondary-button" type="button" onClick={() => setSelectedModule(null)}>
+                  Back to modules
+                </button>
+              ) : null}
+            </div>
+            {selectedModule ? (
+              <article className="module-reader">
+                <div className="module-reader__header">
+                  <div>
+                    <p>{selectedModule.subject_tag || "Module"}</p>
+                    <h3>{selectedModule.title}</h3>
+                  </div>
+                  <span className="pill">{selectedModule.status || "module"}</span>
+                </div>
+                <div className="module-reader__body">
+                  <p>{selectedModule.description || "No module description has been added yet."}</p>
+                </div>
+                <div className="module-reader__attachment">
+                  <strong>Attachment</strong>
+                  {selectedModule.file_path ? (
+                    moduleAttachmentHref(selectedModule.file_path) ? (
+                      <a href={moduleAttachmentHref(selectedModule.file_path)} target="_blank" rel="noreferrer">
+                        {selectedModule.file_path}
+                      </a>
+                    ) : (
+                      <span>{selectedModule.file_path}</span>
+                    )
+                  ) : (
+                    <span>No attachment path saved yet.</span>
+                  )}
+                </div>
+              </article>
+            ) : (
+            <>
             {(classroom?.modules || []).map((module) => (
               <form
                 key={module.id}
@@ -467,6 +552,9 @@ export default function TeacherClassWorkspacePage() {
                   </div>
                   <span className="pill">{module.status}</span>
                 </div>
+                <button className="secondary-button" type="button" onClick={() => setSelectedModule(module)}>
+                  View module
+                </button>
                 <label className="field">
                   <span>Title</span>
                   <input value={moduleEditForms[module.id]?.title ?? ""} onChange={(event) => setModuleEditForms((current) => ({ ...current, [module.id]: { ...current[module.id], title: event.target.value } }))} />
@@ -496,6 +584,8 @@ export default function TeacherClassWorkspacePage() {
               </form>
             ))}
             {!classroom?.modules?.length ? <p className="empty-state">No modules created yet.</p> : null}
+            </>
+            )}
           </div>
 
           <div className="teacher-assignment-stack">
@@ -556,11 +646,13 @@ export default function TeacherClassWorkspacePage() {
                 </button>
               </form>
             ))}
-            {!classroom?.assignments?.length ? <p className="empty-state">No assignments created yet.</p> : null}
+          {!classroom?.assignments?.length ? <p className="empty-state">No assignments created yet.</p> : null}
           </div>
         </div>
       </TeacherSectionCard>
+      ) : null}
 
+      {activeTab === "assessments" ? (
       <TeacherSectionCard
         eyebrow="Assessment Builder"
         title="Assignment questions"
@@ -838,7 +930,9 @@ export default function TeacherClassWorkspacePage() {
           {!classroom?.assignments?.length ? <p className="empty-state">Create an assignment first to add questions.</p> : null}
         </div>
       </TeacherSectionCard>
+      ) : null}
 
+      {activeTab === "updates" ? (
       <TeacherSectionCard
         eyebrow="Class Communication"
         title="Announcements and discussion"
@@ -1092,7 +1186,97 @@ export default function TeacherClassWorkspacePage() {
           </div>
         </div>
       </TeacherSectionCard>
+      ) : null}
 
+      {activeTab === "students" ? (
+      <TeacherSectionCard
+        eyebrow="Students"
+        title="Class roster and intervention status"
+        description="Use this tab as the roster lane for the selected class instead of mixing student cards into the assessment screen."
+      >
+        <div className="teacher-student-grid">
+          {(classroom?.students || []).map((student) => (
+            <article className="teacher-class-card" key={student.id}>
+              <div className="teacher-class-card__header">
+                <div>
+                  <p className="teacher-class-card__eyebrow">{student.school_id || "Student"}</p>
+                  <h3>{student.full_name}</h3>
+                </div>
+                <span className="pill">{student.intervention_status || "clear"}</span>
+              </div>
+              <p className="teacher-class-card__subjects">{student.email}</p>
+              <div className="teacher-class-card__meta">
+                <span>{student.grade_level || classroom?.grade_level || "Grade level"}</span>
+                <span>{student.status || "active"}</span>
+                <span>{student.guardian_name || "No guardian saved"}</span>
+              </div>
+              {student.intervention_note ? (
+                <div className="teacher-feedback-box">
+                  <strong>Intervention note</strong>
+                  <span>{student.intervention_note}</span>
+                </div>
+              ) : null}
+            </article>
+          ))}
+          {!classroom?.students?.length ? <p className="empty-state">No active students in this class yet.</p> : null}
+        </div>
+
+        <div className="teacher-assignment-stack">
+          <h3>Open interventions</h3>
+          {openInterventions.map((intervention) => (
+            <article className="teacher-intervention-card" key={intervention.id}>
+              <div className="teacher-intervention-card__header">
+                <strong>Student #{intervention.student_user_id}</strong>
+                <span className="teacher-intervention-card__status teacher-intervention-card__status--open">
+                  {intervention.status}
+                </span>
+              </div>
+              <div className="teacher-intervention-card__body">
+                <div>
+                  <strong>Trigger score</strong>
+                  <span>{intervention.trigger_score}%</span>
+                </div>
+                <div>
+                  <strong>Teacher note</strong>
+                  <span>{intervention.teacher_note || "No note yet."}</span>
+                </div>
+              </div>
+            </article>
+          ))}
+          {!openInterventions.length ? <p className="empty-state">No open interventions for this class.</p> : null}
+        </div>
+      </TeacherSectionCard>
+      ) : null}
+
+      {activeTab === "calendar" ? (
+      <TeacherSectionCard
+        eyebrow="Calendar"
+        title="Class events and schedule"
+        description="A focused calendar lane for the selected class so events are not buried between authoring tools."
+      >
+        <div className="teacher-class-grid">
+          {(classroom?.calendar_events || []).map((event) => (
+            <article className="teacher-class-card" key={event.id}>
+              <div className="teacher-class-card__header">
+                <div>
+                  <p className="teacher-class-card__eyebrow">{event.event_type}</p>
+                  <h3>{event.title}</h3>
+                </div>
+                <span className="pill">Class event</span>
+              </div>
+              <p className="teacher-class-card__subjects">{event.description || "No description saved."}</p>
+              <div className="teacher-class-card__meta">
+                <span>{event.start_at || "Start TBD"}</span>
+                <span>{event.end_at || "End TBD"}</span>
+              </div>
+            </article>
+          ))}
+          {!classroom?.calendar_events?.length ? <p className="empty-state">No class events yet.</p> : null}
+        </div>
+      </TeacherSectionCard>
+      ) : null}
+
+      {activeTab === "grades" ? (
       <TeacherSectionCard
         eyebrow="Submission Review"
         title="Student work and grading"
@@ -1186,6 +1370,7 @@ export default function TeacherClassWorkspacePage() {
           {!classroom?.submissions?.length ? <p className="empty-state">No student submissions yet.</p> : null}
         </div>
       </TeacherSectionCard>
+      ) : null}
     </TeacherPageShell>
   );
 }
