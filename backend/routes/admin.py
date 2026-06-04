@@ -4,22 +4,29 @@ from io import StringIO
 from pathlib import Path
 from uuid import uuid4
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
 from extensions import db
 from models import (
     AuditLog,
+    Announcement,
     CalendarEvent,
+    Assignment,
+    AssignmentQuestion,
+    DiscussionReply,
+    DiscussionThread,
     Enrollment,
     Grade,
     Intervention,
+    Module,
     Role,
     Resource,
     Section,
     SectionTeacher,
     StudentProfile,
+    Submission,
     SystemSetting,
     TeacherProfile,
     User,
@@ -187,6 +194,8 @@ def _serialize_calendar_event(event):
 
 
 def _serialize_resource(resource):
+    section = db.session.get(Section, resource.section_id) if resource.section_id else None
+    uploader = db.session.get(User, resource.uploader_user_id) if resource.uploader_user_id else None
     return {
         "id": resource.id,
         "title": resource.title,
@@ -194,6 +203,9 @@ def _serialize_resource(resource):
         "file_path": resource.file_path,
         "visibility": resource.visibility,
         "section_id": resource.section_id,
+        "section_name": section.name if section else None,
+        "uploader_user_id": resource.uploader_user_id,
+        "uploader_name": uploader.full_name if uploader else None,
     }
 
 
@@ -516,6 +528,71 @@ def update_user(user_id):
     return jsonify({"user": item})
 
 
+def _delete_assignments_for_teacher(user_id):
+    assignments = Assignment.query.filter_by(teacher_user_id=user_id).all()
+    for assignment in assignments:
+        Submission.query.filter_by(assignment_id=assignment.id).delete()
+        Grade.query.filter_by(assignment_id=assignment.id).delete()
+        Intervention.query.filter_by(assignment_id=assignment.id).delete()
+        AssignmentQuestion.query.filter_by(assignment_id=assignment.id).delete()
+        db.session.delete(assignment)
+
+
+def _delete_user_dependencies(user):
+    AuditLog.query.filter_by(user_id=user.id).update({"user_id": None})
+    Section.query.filter_by(adviser_user_id=user.id).update({"adviser_user_id": None})
+
+    TeacherProfile.query.filter_by(user_id=user.id).delete()
+    StudentProfile.query.filter_by(user_id=user.id).delete()
+
+    SectionTeacher.query.filter_by(teacher_user_id=user.id).delete()
+    Enrollment.query.filter_by(student_user_id=user.id).delete()
+    Module.query.filter_by(teacher_user_id=user.id).delete()
+    Resource.query.filter_by(uploader_user_id=user.id).delete()
+
+    Submission.query.filter_by(student_user_id=user.id).delete()
+    Grade.query.filter_by(student_user_id=user.id).delete()
+    Intervention.query.filter_by(student_user_id=user.id).delete()
+
+    DiscussionReply.query.filter_by(author_user_id=user.id).delete()
+    thread_ids = [thread.id for thread in DiscussionThread.query.filter_by(author_user_id=user.id).all()]
+    if thread_ids:
+        DiscussionReply.query.filter(DiscussionReply.thread_id.in_(thread_ids)).delete()
+        DiscussionThread.query.filter(DiscussionThread.id.in_(thread_ids)).delete()
+
+    Announcement.query.filter_by(author_user_id=user.id).delete()
+    _delete_assignments_for_teacher(user.id)
+
+
+@admin_bp.delete("/users/<int:user_id>")
+@role_required("admin")
+def delete_user(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"message": "User not found."}), 404
+
+    if user.id == current_user.id:
+        return jsonify({"message": "You cannot delete your own account."}), 400
+
+    if user.status != "inactive":
+        return jsonify({"message": "Archive the user before deleting them."}), 400
+
+    deleted_email = user.email
+    deleted_role = user.role.name if user.role else None
+    _delete_user_dependencies(user)
+    db.session.delete(user)
+    db.session.commit()
+
+    write_audit_log(
+        user_id=current_user.id,
+        action="admin.user.delete",
+        entity_type="user",
+        entity_id=user_id,
+        meta_json={"email": deleted_email, "role": deleted_role},
+    )
+    return jsonify({"message": "User deleted."})
+
+
 @admin_bp.post("/users/<int:user_id>/status")
 @role_required("admin")
 def update_user_status(user_id):
@@ -586,6 +663,40 @@ def list_calendar_events():
 def list_resources():
     resources = Resource.query.order_by(Resource.created_at.desc()).all()
     return jsonify({"resources": [_serialize_resource(resource) for resource in resources]})
+
+
+@admin_bp.get("/rosters/template")
+@role_required("admin")
+def roster_import_template():
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "school_id",
+            "first_name",
+            "last_name",
+            "email",
+            "grade_level",
+            "guardian_name",
+            "guardian_contact",
+        ]
+    )
+    writer.writerow(
+        [
+            "STUDENT-1001",
+            "Sample",
+            "Student",
+            "sample.student@nexora.local",
+            "Grade 10",
+            "Sample Guardian",
+            "guardian@example.com",
+        ]
+    )
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=nexora-roster-template.csv"},
+    )
 
 
 @admin_bp.post("/resources")

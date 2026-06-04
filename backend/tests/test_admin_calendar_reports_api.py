@@ -172,7 +172,7 @@ def test_admin_reports_summary_returns_enrollment_grade_and_intervention_counts(
                 student_user_id=student.id,
                 score=18,
                 percentage=72,
-                remarks="At risk",
+                remarks="Needs support",
             )
         )
         db.session.commit()

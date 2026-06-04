@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FolderOpenDot, Link2, Library, Upload } from "lucide-react";
+import { FileUp, FolderOpenDot, Library, Send, Upload } from "lucide-react";
 
 import { TeacherPageShell, TeacherSectionCard } from "../components/teacher/TeacherPageShell";
 import { teacherApi } from "../lib/api";
@@ -12,43 +12,32 @@ const EMPTY_FORM = {
   visibility: "section",
 };
 
-function createResourceEditForm(resource) {
-  return {
-    section_id: resource.section_id ? String(resource.section_id) : "",
-    title: resource.title || "",
-    category: resource.category || "PDF",
-    file_path: resource.file_path || "",
-    visibility: resource.visibility || "section",
-  };
+function categoryFromFile(file) {
+  const extension = file?.name?.split(".").pop()?.toUpperCase();
+  if (!extension) return "FILE";
+  if (extension === "PPTX") return "PPT";
+  return extension;
 }
 
 export default function TeacherResourcesPage() {
   const [sections, setSections] = useState([]);
   const [resources, setResources] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [selectedResourceId, setSelectedResourceId] = useState(null);
-  const [editForm, setEditForm] = useState(null);
+  const [publishTargets, setPublishTargets] = useState({});
+  const [resourceFile, setResourceFile] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [resourceFile, setResourceFile] = useState(null);
+  const [publishingId, setPublishingId] = useState(null);
 
   const loadResources = async () => {
     try {
       const response = await teacherApi.resources();
       const loadedSections = response.sections || [];
-      const loadedResources = response.resources || [];
       setSections(loadedSections);
-      setResources(loadedResources);
+      setResources(response.resources || []);
       if (!form.section_id && loadedSections[0]) {
         setForm((current) => ({ ...current, section_id: String(loadedSections[0].id) }));
-      }
-      if (selectedResourceId) {
-        const nextResource = loadedResources.find((resource) => resource.id === selectedResourceId);
-        if (nextResource) {
-          setEditForm(createResourceEditForm(nextResource));
-        }
       }
     } catch (loadError) {
       setError(loadError.message);
@@ -59,42 +48,30 @@ export default function TeacherResourcesPage() {
     loadResources();
   }, []);
 
-  const selectedResource =
-    resources.find((resource) => resource.id === selectedResourceId) || resources[0] || null;
-
-  useEffect(() => {
-    if (selectedResource && selectedResource.id !== selectedResourceId) {
-      setSelectedResourceId(selectedResource.id);
-    }
-    if (selectedResource) {
-      setEditForm(createResourceEditForm(selectedResource));
-    } else {
-      setEditForm(null);
-    }
-  }, [selectedResourceId, selectedResource]);
-
-  const resourceSummary = useMemo(() => ({
-    school: resources.filter((resource) => resource.visibility === "school").length,
-    section: resources.filter((resource) => resource.visibility === "section").length,
-  }), [resources]);
+  const libraryResources = useMemo(
+    () => resources.filter((resource) => resource.source === "nexora"),
+    [resources]
+  );
+  const sectionResources = useMemo(
+    () => resources.filter((resource) => resource.can_edit || resource.visibility === "section"),
+    [resources]
+  );
 
   return (
     <TeacherPageShell
       badge="Teacher Resources"
-      title="Teaching files and shared references"
-      description="Teacher-owned files and class-linked resources now sit in the same visual language as the main copied workspace."
+      title="Resources and Nexora Library"
+      description="Review shared library files, then publish the useful ones to your own sections."
       icon={Library}
       headerMeta={
         <>
-          <span>{resources.length} resources</span>
-          <span>{resourceSummary.section} section scoped</span>
-          <span>{resourceSummary.school} school scoped</span>
+          <span>{libraryResources.length} library files</span>
+          <span>{sectionResources.length} section files</span>
         </>
       }
       metrics={[
-        { label: "Resources", value: resources.length || "-", caption: "Visible files and links" },
-        { label: "Section Scope", value: resourceSummary.section, caption: "Resources attached to a section" },
-        { label: "School Scope", value: resourceSummary.school, caption: "Resources published beyond one class" },
+        { label: "Library Files", value: libraryResources.length || "-", caption: "Shared by admin" },
+        { label: "Section Files", value: sectionResources.length || "-", caption: "Visible in classes" },
         { label: "Sections", value: sections.length || "-", caption: "Classes you can publish to" },
       ]}
     >
@@ -102,51 +79,121 @@ export default function TeacherResourcesPage() {
       {success ? <div className="form-success">{success}</div> : null}
 
       <TeacherSectionCard
-        eyebrow="Resource Library"
-        title="Current files"
-        description="Review teacher and shared resource entries already visible through your classes."
-        action={<span className="admin-tag-chip">Library view</span>}
+        eyebrow="Nexora Library"
+        title="Shared files from admin"
+        description="Choose a shared file and publish it to one of your sections for students to see."
+        action={<span className="admin-tag-chip">{libraryResources.length} shared</span>}
       >
         <div className="teacher-resource-grid">
-          {resources.map((resource) => (
-            <article
-              className={`teacher-resource-card ${resource.id === selectedResourceId ? "teacher-resource-card--selected" : ""}`}
-              key={resource.id}
-              onClick={() => {
-                setSelectedResourceId(resource.id);
-                setEditForm(createResourceEditForm(resource));
-                setSuccess("");
-              }}
-            >
-              <div className="teacher-resource-card__hero">
-                <div>
-                  <p className="teacher-resource-card__eyebrow">{resource.category || "-"}</p>
-                  <strong>{resource.title}</strong>
+          {libraryResources.map((resource) => {
+            const targetSectionId = publishTargets[resource.id] || sections[0]?.id || "";
+            return (
+              <article className="teacher-resource-card teacher-resource-card--library" key={resource.id}>
+                <div className="teacher-resource-card__hero">
+                  <div>
+                    <p className="teacher-resource-card__eyebrow">{resource.category || "FILE"}</p>
+                    <strong>{resource.title}</strong>
+                  </div>
+                  <span className="teacher-record-pill teacher-record-pill--pending">
+                    {resource.visibility === "teachers" ? "Teachers" : "School"}
+                  </span>
                 </div>
-                <span className="teacher-record-pill teacher-record-pill--pending">{resource.visibility}</span>
-              </div>
-              <div className="teacher-resource-card__metrics">
-                <div>
-                  <strong>Section</strong>
-                  <span>{resource.section_name || resource.section_id || "Teacher-owned / school-wide"}</span>
+                <div className="teacher-resource-card__metrics">
+                  <div>
+                    <strong>Source</strong>
+                    <span>{resource.uploader_name || "Nexora Library"}</span>
+                  </div>
+                  <div>
+                    <strong>File</strong>
+                    <span>{resource.file_path}</span>
+                  </div>
                 </div>
-                <div>
-                  <strong>Path</strong>
-                  <span>{resource.file_path}</span>
+                <div className="teacher-resource-publish-row">
+                  <label className="field">
+                    <span>Publish to section</span>
+                    <select
+                      value={targetSectionId}
+                      onChange={(event) =>
+                        setPublishTargets((current) => ({ ...current, [resource.id]: event.target.value }))
+                      }
+                    >
+                      {sections.map((section) => (
+                        <option key={section.id} value={section.id}>
+                          {section.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className="primary-button"
+                    type="button"
+                    disabled={!targetSectionId || publishingId === resource.id}
+                    onClick={async () => {
+                      setPublishingId(resource.id);
+                      setError("");
+                      setSuccess("");
+                      try {
+                        await teacherApi.publishResourceToSection(resource.id, {
+                          section_id: Number(targetSectionId),
+                        });
+                        setSuccess("Library file published to your section.");
+                        await loadResources();
+                      } catch (publishError) {
+                        setError(publishError.message);
+                      } finally {
+                        setPublishingId(null);
+                      }
+                    }}
+                  >
+                    <Send size={16} />
+                    {publishingId === resource.id ? "Publishing..." : "Publish"}
+                  </button>
                 </div>
-              </div>
-              <p className="teacher-resource-card__note">
-                {resource.description || "Shared through the teacher resource lane for this class set."}
-              </p>
-            </article>
-          ))}
+              </article>
+            );
+          })}
+          {!libraryResources.length ? <p className="empty-state">No shared library files are available yet.</p> : null}
         </div>
       </TeacherSectionCard>
 
       <TeacherSectionCard
-        eyebrow="Create Resource"
-        title="Add a teacher or class file reference"
-        description="Create new PDF, DOCX, PPT, or link entries using the same teacher shell structure."
+        eyebrow="Section Files"
+        title="Files students can see"
+        description="These resources are already attached to one of your sections."
+        action={<span className="admin-tag-chip">{sectionResources.length} section files</span>}
+      >
+        <div className="teacher-resource-grid">
+          {sectionResources.map((resource) => (
+            <article className="teacher-resource-card" key={resource.id}>
+              <div className="teacher-resource-card__hero">
+                <div>
+                  <p className="teacher-resource-card__eyebrow">{resource.category || "FILE"}</p>
+                  <strong>{resource.title}</strong>
+                </div>
+                <span className="teacher-record-pill teacher-record-pill--submitted">
+                  {resource.section_name || "Teacher file"}
+                </span>
+              </div>
+              <div className="teacher-resource-card__metrics">
+                <div>
+                  <strong>Section</strong>
+                  <span>{resource.section_name || "Not attached"}</span>
+                </div>
+                <div>
+                  <strong>File</strong>
+                  <span>{resource.file_path}</span>
+                </div>
+              </div>
+            </article>
+          ))}
+          {!sectionResources.length ? <p className="empty-state">No resources have been published to your sections yet.</p> : null}
+        </div>
+      </TeacherSectionCard>
+
+      <TeacherSectionCard
+        eyebrow="Upload"
+        title="Add your own section file"
+        description="Upload a new file directly to a section when it is specific to your class."
       >
         <form
           className="teacher-filter-grid"
@@ -156,12 +203,30 @@ export default function TeacherResourcesPage() {
             setError("");
             setSuccess("");
             try {
+              let filePath = form.file_path;
+              if (resourceFile) {
+                const uploadForm = new FormData();
+                uploadForm.append("file", resourceFile);
+                uploadForm.append("kind", "resource");
+                const uploaded = await teacherApi.uploadFile(uploadForm);
+                filePath = uploaded.file_path;
+              }
+
+              if (!filePath) {
+                throw new Error("Choose a file before saving.");
+              }
+
               await teacherApi.createResource({
                 ...form,
+                title: form.title || resourceFile?.name || "Untitled resource",
+                category: form.category || categoryFromFile(resourceFile),
+                file_path: filePath,
                 section_id: form.section_id ? Number(form.section_id) : null,
+                visibility: "section",
               });
               setForm((current) => ({ ...EMPTY_FORM, section_id: current.section_id }));
-              setSuccess("Resource created.");
+              setResourceFile(null);
+              setSuccess("Section resource uploaded.");
               await loadResources();
             } catch (saveError) {
               setError(saveError.message);
@@ -172,17 +237,17 @@ export default function TeacherResourcesPage() {
         >
           <div className="teacher-resource-callout-grid">
             <article className="admin-mini-callout">
-              <Library size={18} />
+              <FolderOpenDot size={18} />
               <div>
-                <strong>Teaching library</strong>
-                <span>Use clear titles so students can spot the right file from the class workspace quickly.</span>
+                <strong>Section file</strong>
+                <span>Attach class-specific files to one section.</span>
               </div>
             </article>
             <article className="admin-mini-callout">
-              <FolderOpenDot size={18} />
+              <Upload size={18} />
               <div>
-                <strong>Section targeting</strong>
-                <span>Keep section scope for class-specific handouts; widen visibility only when the resource truly travels.</span>
+                <strong>Upload once</strong>
+                <span>The saved file appears in the section resource list.</span>
               </div>
             </article>
           </div>
@@ -198,144 +263,31 @@ export default function TeacherResourcesPage() {
             </select>
           </label>
           <label className="field">
+            <span>File</span>
+            <input
+              type="file"
+              onChange={(event) => {
+                const nextFile = event.target.files?.[0] || null;
+                setResourceFile(nextFile);
+                if (nextFile) {
+                  setForm((current) => ({
+                    ...current,
+                    title: current.title || nextFile.name,
+                    category: categoryFromFile(nextFile),
+                  }));
+                }
+              }}
+            />
+          </label>
+          <label className="field">
             <span>Title</span>
             <input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} />
           </label>
-          <label className="field">
-            <span>File path</span>
-            <input value={form.file_path} onChange={(event) => setForm((current) => ({ ...current, file_path: event.target.value }))} />
-          </label>
-          <label className="field">
-            <span>Upload file</span>
-            <input type="file" onChange={(event) => setResourceFile(event.target.files?.[0] || null)} />
-          </label>
-          <label className="field">
-            <span>Category</span>
-            <select value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}>
-              <option value="PDF">PDF</option>
-              <option value="DOCX">DOCX</option>
-              <option value="PPT">PPT</option>
-              <option value="LINK">Link</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>Visibility</span>
-            <select value={form.visibility} onChange={(event) => setForm((current) => ({ ...current, visibility: event.target.value }))}>
-              <option value="section">Section</option>
-              <option value="school">School</option>
-            </select>
-          </label>
-          <div className="action-row">
-            <button className="primary-button" type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Create resource"}
-            </button>
-            <button
-              className="secondary-button"
-              type="button"
-              disabled={uploading || !resourceFile}
-              onClick={async () => {
-                setUploading(true);
-                setError("");
-                setSuccess("");
-                try {
-                  const formData = new FormData();
-                  formData.append("file", resourceFile);
-                  formData.append("kind", "resource");
-                  const uploaded = await teacherApi.uploadFile(formData);
-                  setForm((current) => ({ ...current, file_path: uploaded.file_path }));
-                  setSuccess("Resource file uploaded. Review the path and save the resource.");
-                } catch (uploadError) {
-                  setError(uploadError.message);
-                } finally {
-                  setUploading(false);
-                }
-              }}
-            >
-              {uploading ? "Uploading..." : "Upload file"}
-            </button>
-          </div>
+          <button className="primary-button" type="submit" disabled={saving || !form.section_id}>
+            <FileUp size={16} />
+            {saving ? "Uploading..." : "Upload section file"}
+          </button>
         </form>
-      </TeacherSectionCard>
-
-      <TeacherSectionCard
-        eyebrow="Update Resource"
-        title="Selected file reference"
-        description="Adjust teacher or class resource metadata without recreating the row."
-      >
-        {selectedResource && editForm ? (
-          <form
-            className="teacher-filter-grid"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              setSaving(true);
-              setError("");
-              setSuccess("");
-              try {
-                await teacherApi.updateResource(selectedResource.id, {
-                  ...editForm,
-                  section_id: editForm.section_id ? Number(editForm.section_id) : null,
-                });
-                setSuccess("Resource updated.");
-                await loadResources();
-              } catch (saveError) {
-                setError(saveError.message);
-              } finally {
-                setSaving(false);
-              }
-            }}
-          >
-            <div className="teacher-resource-callout-grid">
-              <article className="admin-mini-callout">
-                <Link2 size={18} />
-                <div>
-                  <strong>Reference hygiene</strong>
-                  <span>Keep paths and labels stable so existing class links remain understandable to students.</span>
-                </div>
-              </article>
-            </div>
-
-            <label className="field">
-              <span>Section</span>
-              <select value={editForm.section_id} onChange={(event) => setEditForm((current) => ({ ...current, section_id: event.target.value }))}>
-                <option value="">Teacher-owned only</option>
-                {sections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Title</span>
-              <input value={editForm.title} onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>File path</span>
-              <input value={editForm.file_path} onChange={(event) => setEditForm((current) => ({ ...current, file_path: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Category</span>
-              <select value={editForm.category} onChange={(event) => setEditForm((current) => ({ ...current, category: event.target.value }))}>
-                <option value="PDF">PDF</option>
-                <option value="DOCX">DOCX</option>
-                <option value="PPT">PPT</option>
-                <option value="LINK">Link</option>
-              </select>
-            </label>
-            <label className="field">
-              <span>Visibility</span>
-              <select value={editForm.visibility} onChange={(event) => setEditForm((current) => ({ ...current, visibility: event.target.value }))}>
-                <option value="section">Section</option>
-                <option value="school">School</option>
-              </select>
-            </label>
-            <button className="primary-button" type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save resource changes"}
-            </button>
-          </form>
-        ) : (
-          <p className="empty-state">Select a resource row to edit it.</p>
-        )}
       </TeacherSectionCard>
     </TeacherPageShell>
   );

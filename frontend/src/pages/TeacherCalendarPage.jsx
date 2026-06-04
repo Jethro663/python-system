@@ -190,7 +190,7 @@ export default function TeacherCalendarPage() {
               <ClipboardCheck size={18} />
               <div>
                 <strong>Assessment rhythm</strong>
-                <span>Reserve assessment markers for work that should also reinforce your results and intervention flow.</span>
+                <span>Reserve assessment markers for work that should also reinforce your results and support flow.</span>
               </div>
             </article>
           </div>

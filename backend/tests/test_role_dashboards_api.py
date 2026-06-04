@@ -143,7 +143,7 @@ def test_student_dashboard_returns_enrollments_results_and_intervention_flag():
                 student_user_id=student.id,
                 score=18,
                 percentage=72,
-                remarks="At risk",
+                remarks="Needs support",
             )
         )
         db.session.commit()
@@ -419,7 +419,7 @@ def test_student_can_submit_assignment_and_see_remedial_access():
                 student_user_id=User.query.filter_by(email="student@example.com").first().id,
                 score=14,
                 percentage=70,
-                remarks="Needs intervention",
+                remarks="Needs support",
             )
         )
         db.session.add(
@@ -597,7 +597,7 @@ def test_student_resubmission_clears_stale_grading_state_until_teacher_reviews_a
                 student_user_id=student.id,
                 score=2,
                 percentage=40,
-                remarks="Needs intervention",
+                remarks="Needs support",
             )
         )
         db.session.add(

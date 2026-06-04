@@ -1,114 +1,107 @@
 import { useEffect, useMemo, useState } from "react";
-import { Filter, ListChecks, Search, SlidersHorizontal } from "lucide-react";
+import { BookOpenCheck, GraduationCap, ListChecks } from "lucide-react";
 
 import { TeacherPageShell, TeacherSectionCard } from "../components/teacher/TeacherPageShell";
 import { teacherApi } from "../lib/api";
 
-const DEFAULT_FILTERS = {
-  section_id: "",
-  assignment_id: "",
-  student_query: "",
-  submission_status: "",
-  min_percentage: "",
-  max_percentage: "",
-};
-
 export default function TeacherResultsPage() {
   const [report, setReport] = useState(null);
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [sectionId, setSectionId] = useState("");
+  const [assignmentId, setAssignmentId] = useState("");
+  const [studentId, setStudentId] = useState("");
   const [error, setError] = useState("");
 
-  const loadResults = async (nextFilters = filters) => {
-    try {
-      const response = await teacherApi.filteredReports(nextFilters);
-      setReport(response);
-    } catch (loadError) {
-      setError(loadError.message);
-    }
-  };
-
   useEffect(() => {
-    loadResults(DEFAULT_FILTERS);
+    teacherApi
+      .filteredReports({})
+      .then((response) => {
+        setReport(response);
+        const firstSection = response.sections?.[0];
+        if (firstSection) {
+          setSectionId(String(firstSection.id));
+        }
+      })
+      .catch((loadError) => setError(loadError.message));
   }, []);
 
-  const metrics = useMemo(
-    () => [
-      { label: "Submissions", value: report?.summary?.submissions ?? "-", caption: "Rows in the current result set" },
-      { label: "Assignments", value: report?.summary?.assignments ?? "-", caption: "Assessments covered by the filter" },
-      { label: "Classes", value: report?.summary?.classes ?? "-", caption: "Classes represented in results" },
-      {
-        label: "Visible Results",
-        value: report?.submission_summaries?.length ?? "-",
-        caption: "Teacher-visible outcome cards currently loaded",
-      },
-    ],
-    [report]
+  const selectedClassRecord = useMemo(
+    () => (report?.class_records || []).find((record) => String(record.section_id) === String(sectionId)) || null,
+    [report, sectionId]
   );
+
+  const classAssignments = useMemo(
+    () => (report?.assignments || []).filter((assignment) => String(assignment.section_id) === String(sectionId)),
+    [report, sectionId]
+  );
+
+  const enrolledStudents = selectedClassRecord?.students || [];
+
+  useEffect(() => {
+    const firstAssignment = classAssignments[0];
+    setAssignmentId(firstAssignment ? String(firstAssignment.id) : "");
+  }, [classAssignments]);
+
+  useEffect(() => {
+    const firstStudent = enrolledStudents[0];
+    setStudentId(firstStudent ? String(firstStudent.student_user_id) : "");
+  }, [enrolledStudents]);
+
+  const selectedAssignment = classAssignments.find(
+    (assignment) => String(assignment.id) === String(assignmentId)
+  );
+  const selectedStudent = enrolledStudents.find(
+    (student) => String(student.student_user_id) === String(studentId)
+  );
+  const selectedGrade = selectedStudent?.grades?.find(
+    (grade) => String(grade.assignment_id) === String(assignmentId)
+  );
+
+  const classAverage = useMemo(() => {
+    const grades = enrolledStudents
+      .map((student) => student.grades?.find((grade) => String(grade.assignment_id) === String(assignmentId)))
+      .filter(Boolean);
+    if (!grades.length) return null;
+    const total = grades.reduce((sum, grade) => sum + Number(grade.percentage || 0), 0);
+    return Math.round(total / grades.length);
+  }, [enrolledStudents, assignmentId]);
 
   return (
     <TeacherPageShell
       badge="Teacher Results"
-      title="View student results"
-      description="Filter by student, assignment, score range, and submission status to inspect teacher-side outcomes directly."
+      title="View student grades"
+      description="Choose a class, assignment, and enrolled student to see the recorded grade."
       headerMeta={
         <>
-          <span>{report?.summary?.submissions ?? 0} submissions</span>
-          <span>{report?.summary?.assignments ?? 0} assignments</span>
-          <span>{filters.submission_status || "all statuses"}</span>
+          <span>{report?.sections?.length ?? 0} classes</span>
+          <span>{classAssignments.length} assignments</span>
+          <span>{enrolledStudents.length} enrolled students</span>
         </>
       }
-      metrics={metrics}
+      metrics={[
+        { label: "Classes", value: report?.sections?.length ?? "-", caption: "Assigned to you" },
+        { label: "Assignments", value: classAssignments.length || "-", caption: "In selected class" },
+        { label: "Students", value: enrolledStudents.length || "-", caption: "Enrolled in selected class" },
+        { label: "Class Average", value: classAverage === null ? "-" : `${classAverage}%`, caption: "For selected assignment" },
+      ]}
     >
       {error ? <div className="form-error">{error}</div> : null}
 
       <TeacherSectionCard
-        eyebrow="Result Filters"
-        title="Refine result visibility"
-        description="This is the teacher-side result view requested in the checklist."
-        actions={
-          <button
-            className="secondary-button"
-            onClick={() => {
-              setFilters(DEFAULT_FILTERS);
-              loadResults(DEFAULT_FILTERS);
-            }}
-          >
-            Reset
-          </button>
-        }
+        eyebrow="Result Lookup"
+        title="Choose what to view"
+        description="Use the dropdowns to move between classes, assignments, and enrolled students."
       >
-        <form
-          className="teacher-filter-grid"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setError("");
-            loadResults(filters);
-          }}
-        >
-          <div className="teacher-results-callout-grid">
-            <article className="admin-mini-callout">
-              <Filter size={18} />
-              <div>
-                <strong>Focused review</strong>
-                <span>Use filters to isolate one class, one assignment, or one score band before making decisions.</span>
-              </div>
-            </article>
-            <article className="admin-mini-callout">
-              <Search size={18} />
-              <div>
-                <strong>Student lookup</strong>
-                <span>Search by name, school ID, or email when you need to inspect one learner's current result path.</span>
-              </div>
-            </article>
-          </div>
-
+        <div className="teacher-filter-grid">
           <label className="field">
             <span>Class</span>
             <select
-              value={filters.section_id}
-              onChange={(event) => setFilters((current) => ({ ...current, section_id: event.target.value }))}
+              value={sectionId}
+              onChange={(event) => {
+                setSectionId(event.target.value);
+                setAssignmentId("");
+                setStudentId("");
+              }}
             >
-              <option value="">All assigned classes</option>
               {(report?.sections || []).map((section) => (
                 <option key={section.id} value={section.id}>
                   {section.name}
@@ -116,107 +109,98 @@ export default function TeacherResultsPage() {
               ))}
             </select>
           </label>
+
           <label className="field">
             <span>Assignment</span>
-            <select
-              value={filters.assignment_id}
-              onChange={(event) => setFilters((current) => ({ ...current, assignment_id: event.target.value }))}
-            >
-              <option value="">All assignments</option>
-              {(report?.assignments || []).map((assignment) => (
+            <select value={assignmentId} onChange={(event) => setAssignmentId(event.target.value)}>
+              {classAssignments.map((assignment) => (
                 <option key={assignment.id} value={assignment.id}>
                   {assignment.title}
                 </option>
               ))}
             </select>
           </label>
+
           <label className="field">
-            <span>Student query</span>
-            <input
-              value={filters.student_query}
-              placeholder="Name, school ID, or email"
-              onChange={(event) => setFilters((current) => ({ ...current, student_query: event.target.value }))}
-            />
-          </label>
-          <label className="field">
-            <span>Status</span>
-            <select
-              value={filters.submission_status}
-              onChange={(event) => setFilters((current) => ({ ...current, submission_status: event.target.value }))}
-            >
-              <option value="">All statuses</option>
-              <option value="submitted">Submitted</option>
-              <option value="graded">Graded</option>
-              <option value="draft">Draft</option>
+            <span>Student</span>
+            <select value={studentId} onChange={(event) => setStudentId(event.target.value)}>
+              {enrolledStudents.map((student) => (
+                <option key={student.student_user_id} value={student.student_user_id}>
+                  {student.student_name}
+                </option>
+              ))}
             </select>
           </label>
-          <label className="field">
-            <span>Min %</span>
-            <input
-              type="number"
-              value={filters.min_percentage}
-              onChange={(event) => setFilters((current) => ({ ...current, min_percentage: event.target.value }))}
-            />
-          </label>
-          <label className="field">
-            <span>Max %</span>
-            <input
-              type="number"
-              value={filters.max_percentage}
-              onChange={(event) => setFilters((current) => ({ ...current, max_percentage: event.target.value }))}
-            />
-          </label>
-          <button className="primary-button" type="submit">
-            Apply filters
-          </button>
-        </form>
+        </div>
       </TeacherSectionCard>
 
       <TeacherSectionCard
-        eyebrow="Student Outcomes"
-        title="Filtered results"
-        description="Each card shows the teacher-visible outcome state with score and feedback."
+        eyebrow="Grade"
+        title={selectedStudent?.student_name || "No student selected"}
+        description={selectedAssignment ? selectedAssignment.title : "Choose an assignment to view a grade."}
       >
         <div className="teacher-results-summary-grid">
           <article className="teacher-results-summary-card">
-            <ListChecks size={18} />
+            <GraduationCap size={18} />
             <div>
-              <strong>{report?.submission_summaries?.length || 0}</strong>
-              <span>submission rows currently matching the active filter set</span>
+              <strong>{selectedGrade ? `${selectedGrade.percentage}%` : "-"}</strong>
+              <span>Recorded percentage</span>
             </div>
           </article>
           <article className="teacher-results-summary-card">
-            <SlidersHorizontal size={18} />
+            <BookOpenCheck size={18} />
             <div>
-              <strong>{filters.submission_status || "All"}</strong>
-              <span>current status filter applied to the result list</span>
+              <strong>{selectedGrade?.score ?? "-"}</strong>
+              <span>Raw score</span>
+            </div>
+          </article>
+          <article className="teacher-results-summary-card">
+            <ListChecks size={18} />
+            <div>
+              <strong>{selectedGrade?.remarks || "No grade yet"}</strong>
+              <span>Grade remarks</span>
             </div>
           </article>
         </div>
 
+        {!selectedGrade ? (
+          <p className="empty-state">No grade has been recorded yet for this student and assignment.</p>
+        ) : null}
+      </TeacherSectionCard>
+
+      <TeacherSectionCard
+        eyebrow="Class List"
+        title="Enrolled students for this assignment"
+        description="A quick view of every enrolled student's current grade for the selected assignment."
+      >
         <div className="teacher-results-grid">
-          {(report?.submission_summaries || []).map((submission) => (
-            <article className="teacher-result-card" key={submission.id}>
-              <div className="teacher-result-card__header">
-                <div>
-                  <p className="teacher-result-card__eyebrow">{submission.assignment_title}</p>
-                  <strong>{submission.student_name}</strong>
+          {enrolledStudents.map((student) => {
+            const grade = student.grades?.find((item) => String(item.assignment_id) === String(assignmentId));
+            return (
+              <article className="teacher-result-card" key={student.student_user_id}>
+                <div className="teacher-result-card__header">
+                  <div>
+                    <p className="teacher-result-card__eyebrow">{selectedAssignment?.title || "Assignment"}</p>
+                    <strong>{student.student_name}</strong>
+                  </div>
+                  <span className={`teacher-record-pill ${grade ? "teacher-record-pill--passing" : "teacher-record-pill--pending"}`}>
+                    {grade ? `${grade.percentage}%` : "No grade"}
+                  </span>
                 </div>
-                <span className="teacher-record-pill teacher-record-pill--pending">{submission.status}</span>
-              </div>
-              <div className="teacher-result-card__metrics">
-                <div>
-                  <strong>Percentage</strong>
-                  <span>{submission.final_score ?? "-"}</span>
+                <div className="teacher-result-card__metrics">
+                  <div>
+                    <strong>Score</strong>
+                    <span>{grade?.score ?? "-"}</span>
+                  </div>
+                  <div>
+                    <strong>Remarks</strong>
+                    <span>{grade?.remarks || "-"}</span>
+                  </div>
                 </div>
-                <div>
-                  <strong>Assignment state</strong>
-                  <span>{submission.status || "-"}</span>
-                </div>
-              </div>
-              <p className="teacher-result-card__note">{submission.feedback || "No feedback written yet."}</p>
-            </article>
-          ))}
+              </article>
+            );
+          })}
+          {!enrolledStudents.length ? <p className="empty-state">No students are enrolled in this class yet.</p> : null}
         </div>
       </TeacherSectionCard>
     </TeacherPageShell>

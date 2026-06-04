@@ -520,6 +520,19 @@ export default function AdminUsersPage() {
                 <button
                   className="secondary-button"
                   type="button"
+                  disabled={saving || selectedUser.status === "inactive"}
+                  onClick={() =>
+                    handleUserAction(
+                      () => adminApi.updateUserStatus(selectedUser.id, { status: "inactive" }),
+                      "User archived."
+                    )
+                  }
+                >
+                  Archive
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
                   disabled={saving || selectedUser.status === "active"}
                   onClick={() =>
                     handleUserAction(
@@ -551,6 +564,26 @@ export default function AdminUsersPage() {
                 >
                   Reset password
                 </button>
+                {selectedUser.status === "inactive" ? (
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={saving}
+                    onClick={() => {
+                      const confirmed = window.confirm(
+                        `Delete ${selectedUser.full_name}? This permanently removes the account.`
+                      );
+                      if (!confirmed) return;
+                      handleUserAction(async () => {
+                        await adminApi.deleteUser(selectedUser.id);
+                        setSelectedUserId(null);
+                        setEditForm(null);
+                      }, "User deleted.");
+                    }}
+                  >
+                    Delete user
+                  </button>
+                ) : null}
               </div>
             </form>
           </div>

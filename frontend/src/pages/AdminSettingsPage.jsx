@@ -127,7 +127,7 @@ export default function AdminSettingsPage() {
       <AdminSectionCard
         eyebrow="Academic Transition"
         title="Archive the current quarter and reset flags"
-        description="This simplified workflow moves the active quarter forward and clears open interventions for the new quarter."
+        description="This simplified workflow moves the active quarter forward and clears open support flags for the new quarter."
         action={<span className="admin-tag-chip">Rollover</span>}
       >
           <div className="admin-spotlight-card">
@@ -150,7 +150,7 @@ export default function AdminSettingsPage() {
               </div>
               <div>
                 <strong>Transition rule</strong>
-                <span>Open interventions are reset when the academic state advances.</span>
+                <span>Open support flags are reset when the academic state advances.</span>
               </div>
               <div>
                 <strong>Use case</strong>
@@ -178,7 +178,7 @@ export default function AdminSettingsPage() {
                   next_quarter: data.settings.active_quarter || "",
                 });
                 setSuccess(
-                  `Academic transition complete. Reset interventions: ${data.summary.reset_interventions}.`
+                  `Academic transition complete. Reset support flags: ${data.summary.reset_interventions}.`
                 );
               } catch (transitionError) {
                 setError(transitionError.message);
@@ -192,14 +192,14 @@ export default function AdminSettingsPage() {
                 <GraduationCap size={18} />
                 <div>
                   <strong>Academic rollover</strong>
-                  <span>Advance the school state deliberately so historical sections and intervention cleanup stay coherent.</span>
+                  <span>Advance the school state deliberately so historical sections and support cleanup stay coherent.</span>
                 </div>
               </article>
               <article className="admin-mini-callout">
                 <RefreshCcw size={18} />
                 <div>
                   <strong>Reset effect</strong>
-                  <span>This is the administrative checkpoint that clears open intervention flags for the new quarter.</span>
+                  <span>This is the administrative checkpoint that clears open support flags for the new quarter.</span>
                 </div>
               </article>
             </div>

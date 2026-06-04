@@ -44,7 +44,7 @@ export default function TeacherRosterPage() {
     <TeacherPageShell
       badge="Teacher Roster"
       title="Class roster and enrollment visibility"
-      description="Review enrolled students, recent results, intervention state, and optionally add eligible students to a class."
+      description="Review enrolled students, recent results, support state, and optionally add eligible students to a class."
       headerMeta={
         <>
           <span>{sections.length} assigned classes</span>
@@ -56,7 +56,7 @@ export default function TeacherRosterPage() {
         { label: "Assigned Classes", value: sections.length || "-", caption: "Classes visible to this teacher" },
         { label: "Enrolled Students", value: roster?.students?.length ?? "-", caption: "Current class roster size" },
         { label: "Eligible Additions", value: roster?.eligible_students?.length ?? "-", caption: "Students available for optional add" },
-        { label: "Open Flags", value: summary.interventions, caption: "Students with active intervention state" },
+        { label: "Open Flags", value: summary.interventions, caption: "Students with active support state" },
       ]}
     >
       {error ? <div className="form-error">{error}</div> : null}

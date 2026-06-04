@@ -17,24 +17,24 @@ export default function AdminReportsPage() {
 
   const snapshots = data?.grade_snapshots || [];
   const summary = useMemo(() => {
-    const highRisk = snapshots.filter((grade) => Number(grade.percentage) < 74).length;
+    const belowMastery = snapshots.filter((grade) => Number(grade.percentage) < 74).length;
     const average = snapshots.length
       ? Math.round(snapshots.reduce((sum, grade) => sum + Number(grade.percentage || 0), 0) / snapshots.length)
       : 0;
-    return { highRisk, average };
+    return { belowMastery, average };
   }, [snapshots]);
 
   return (
     <AdminPageShell
       badge="Reports"
       title="Enrollment and grade snapshots"
-      description="A compact admin reporting surface for section coverage, user counts, and current at-risk grade pressure."
+      description="A compact admin reporting surface for section coverage, user counts, and current below-mastery grade pressure."
       icon={BarChart3}
       meta={
         <>
           <span>{data?.summary.section_count ?? 0} sections</span>
           <span>{data?.summary.total_enrollments ?? 0} enrollments</span>
-          <span>{data?.summary.at_risk_grades ?? 0} at-risk grades</span>
+          <span>{data?.summary.at_risk_grades ?? 0} below-mastery grades</span>
         </>
       }
       metrics={[
@@ -50,7 +50,7 @@ export default function AdminReportsPage() {
         },
         { label: "Users", value: data?.summary.user_count ?? "-", caption: "Accounts in scope" },
         {
-          label: "At-Risk Grades",
+          label: "Below Mastery",
           value: data?.summary.at_risk_grades ?? "-",
           caption: "Grades below threshold",
         },
@@ -82,7 +82,7 @@ export default function AdminReportsPage() {
           <article className="admin-report-pulse-card">
             <AlertTriangle size={18} />
             <div>
-              <strong>{summary.highRisk}</strong>
+              <strong>{summary.belowMastery}</strong>
               <span>grade rows currently landing below the mastery threshold</span>
             </div>
           </article>

@@ -13,7 +13,7 @@ const EMPTY_MODULE = {
 };
 const EMPTY_ASSIGNMENT = { title: "", type: "quiz", instructions: "", status: "draft" };
 const EMPTY_ANNOUNCEMENT = { title: "", body: "", visibility: "section", status: "draft" };
-const EMPTY_DISCUSSION = { title: "", body: "", is_pinned: false, status: "draft" };
+const EMPTY_DISCUSSION = { title: "", body: "", visibility: "section", is_pinned: false, status: "draft" };
 const EMPTY_QUESTION = {
   question_text: "",
   question_type: "multiple_choice",
@@ -99,6 +99,7 @@ function buildDiscussionEditForms(threads) {
     next[thread.id] = {
       title: thread.title || "",
       body: thread.body || "",
+      visibility: thread.visibility || "section",
       is_pinned: Boolean(thread.is_pinned),
       status: thread.status || "draft",
     };
@@ -175,7 +176,7 @@ export default function TeacherClassWorkspacePage() {
     { label: "Assignments", value: classroom?.assignments?.length ?? "-", caption: "Drafts and published work" },
     { label: "Submissions", value: classroom?.submissions?.length ?? "-", caption: "Student work in review" },
     {
-      label: "Open Interventions",
+      label: "Support Watch",
       value: classroom?.interventions?.filter((item) => item.status === "open").length ?? "-",
       caption: "Below-threshold follow-up cases",
     },
@@ -296,7 +297,7 @@ export default function TeacherClassWorkspacePage() {
             <p className="teacher-class-card__subjects">{classroom?.subjects?.join(", ") || "-"}</p>
             <div className="teacher-class-card__meta">
               <span>{classroom?.student_count || 0} students</span>
-              <span>{classroom?.at_risk_students || 0} at risk</span>
+              <span>{classroom?.at_risk_students || 0} support watch</span>
               <span>{classroom?.schedule_text || "No schedule set"}</span>
             </div>
           </article>
@@ -321,7 +322,7 @@ export default function TeacherClassWorkspacePage() {
             <div className="teacher-class-card__header">
               <div>
                 <p className="teacher-class-card__eyebrow">Class pressure</p>
-                <h3>Review and intervention</h3>
+                <h3>Review and support</h3>
               </div>
             </div>
             <div className="teacher-class-card__metric-grid">
@@ -331,7 +332,7 @@ export default function TeacherClassWorkspacePage() {
               </div>
               <div>
                 <strong>{classroom?.interventions?.filter((item) => item.status === "open").length || 0}</strong>
-                <span>Open interventions</span>
+                <span>Open support items</span>
               </div>
             </div>
             <div className="teacher-event-stack">
@@ -1021,6 +1022,13 @@ export default function TeacherClassWorkspacePage() {
                 <option value="published">Published</option>
               </select>
             </label>
+            <label className="field">
+              <span>Visibility</span>
+              <select value={discussionForm.visibility} onChange={(event) => setDiscussionForm((current) => ({ ...current, visibility: event.target.value }))}>
+                <option value="section">Section</option>
+                <option value="school">School</option>
+              </select>
+            </label>
             <label className="field teacher-checkbox">
               <input type="checkbox" checked={discussionForm.is_pinned} onChange={(event) => setDiscussionForm((current) => ({ ...current, is_pinned: event.target.checked }))} />
               <span>Pin thread</span>
@@ -1115,7 +1123,9 @@ export default function TeacherClassWorkspacePage() {
                 >
                   <div className="teacher-class-card__header">
                     <div>
-                      <p className="teacher-class-card__eyebrow">{thread.is_pinned ? "Pinned thread" : "Discussion thread"}</p>
+                      <p className="teacher-class-card__eyebrow">
+                        {thread.visibility === "school" ? "School discussion" : thread.is_pinned ? "Pinned thread" : "Discussion thread"}
+                      </p>
                       <h3>{thread.title}</h3>
                     </div>
                     <span className="pill">{thread.status}</span>
@@ -1133,6 +1143,13 @@ export default function TeacherClassWorkspacePage() {
                     <select value={discussionEditForms[thread.id]?.status ?? "draft"} onChange={(event) => setDiscussionEditForms((current) => ({ ...current, [thread.id]: { ...current[thread.id], status: event.target.value } }))}>
                       <option value="draft">Draft</option>
                       <option value="published">Published</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Visibility</span>
+                    <select value={discussionEditForms[thread.id]?.visibility ?? "section"} onChange={(event) => setDiscussionEditForms((current) => ({ ...current, [thread.id]: { ...current[thread.id], visibility: event.target.value } }))}>
+                      <option value="section">Section</option>
+                      <option value="school">School</option>
                     </select>
                   </label>
                   <label className="field teacher-checkbox">
@@ -1191,7 +1208,7 @@ export default function TeacherClassWorkspacePage() {
       {activeTab === "students" ? (
       <TeacherSectionCard
         eyebrow="Students"
-        title="Class roster and intervention status"
+        title="Class roster and support status"
         description="Use this tab as the roster lane for the selected class instead of mixing student cards into the assessment screen."
       >
         <div className="teacher-student-grid">
@@ -1212,7 +1229,7 @@ export default function TeacherClassWorkspacePage() {
               </div>
               {student.intervention_note ? (
                 <div className="teacher-feedback-box">
-                  <strong>Intervention note</strong>
+                  <strong>Support note</strong>
                   <span>{student.intervention_note}</span>
                 </div>
               ) : null}
@@ -1222,7 +1239,7 @@ export default function TeacherClassWorkspacePage() {
         </div>
 
         <div className="teacher-assignment-stack">
-          <h3>Open interventions</h3>
+          <h3>Open support items</h3>
           {openInterventions.map((intervention) => (
             <article className="teacher-intervention-card" key={intervention.id}>
               <div className="teacher-intervention-card__header">
@@ -1243,7 +1260,7 @@ export default function TeacherClassWorkspacePage() {
               </div>
             </article>
           ))}
-          {!openInterventions.length ? <p className="empty-state">No open interventions for this class.</p> : null}
+          {!openInterventions.length ? <p className="empty-state">No open support items for this class.</p> : null}
         </div>
       </TeacherSectionCard>
       ) : null}
@@ -1280,7 +1297,7 @@ export default function TeacherClassWorkspacePage() {
       <TeacherSectionCard
         eyebrow="Submission Review"
         title="Student work and grading"
-        description="Inspect responses, assign scores, and trigger interventions from the same review surface."
+        description="Inspect responses, assign scores, and trigger support follow-up from the same review surface."
       >
         <div className="teacher-assignment-stack">
           {(classroom?.submissions || []).map((submission) => (

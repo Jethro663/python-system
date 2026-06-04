@@ -189,6 +189,7 @@ def _serialize_discussion_thread(thread):
         "body": thread.body,
         "status": thread.status,
         "is_pinned": thread.is_pinned,
+        "visibility": thread.visibility,
         "author_user_id": thread.author_user_id,
         "author_name": author.full_name if author else None,
         "published_at": thread.published_at.isoformat() if thread.published_at else None,
@@ -417,7 +418,7 @@ def _upsert_grade_and_intervention(section_id, assignment, submission, raw_score
         assignment_id=assignment.id,
         student_user_id=submission.student_user_id,
     ).first()
-    remarks = "Needs intervention" if float(percentage) < MASTERY_THRESHOLD else "Passing"
+    remarks = "Needs support" if float(percentage) < MASTERY_THRESHOLD else "Passing"
 
     if not grade:
         grade = Grade(
@@ -645,15 +646,18 @@ def student_classroom(section_id):
         )
     resources = (
         Resource.query.filter(
-            Resource.section_id == section_id,
-            Resource.visibility.in_(("section", "school")),
+            (
+                (Resource.section_id == section_id)
+                & Resource.visibility.in_(("section", "school"))
+            )
+            | ((Resource.section_id.is_(None)) & (Resource.visibility == "school"))
         )
         .order_by(Resource.created_at.desc())
         .all()
     )
     announcements = (
         Announcement.query.filter(
-            Announcement.section_id == section_id,
+            (Announcement.section_id == section_id) | (Announcement.visibility == "school"),
             Announcement.published_at.isnot(None),
         )
         .order_by(Announcement.created_at.desc())
@@ -661,7 +665,7 @@ def student_classroom(section_id):
     )
     discussion_threads = (
         DiscussionThread.query.filter(
-            DiscussionThread.section_id == section_id,
+            (DiscussionThread.section_id == section_id) | (DiscussionThread.visibility == "school"),
             DiscussionThread.status == "published",
         )
         .order_by(DiscussionThread.is_pinned.desc(), DiscussionThread.created_at.desc())

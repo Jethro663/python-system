@@ -217,12 +217,21 @@ def _serialize_student(user):
 
 
 def _serialize_resource(resource):
+    section = db.session.get(Section, resource.section_id) if resource.section_id else None
+    uploader = db.session.get(User, resource.uploader_user_id) if resource.uploader_user_id else None
+    owned_by_current_teacher = resource.uploader_user_id == current_user.id
     return {
         "id": resource.id,
+        "section_id": resource.section_id,
+        "section_name": section.name if section else None,
         "title": resource.title,
         "category": resource.category,
         "file_path": resource.file_path,
         "visibility": resource.visibility,
+        "uploader_user_id": resource.uploader_user_id,
+        "uploader_name": uploader.full_name if uploader else None,
+        "source": "teacher" if owned_by_current_teacher else "nexora",
+        "can_edit": owned_by_current_teacher,
     }
 
 
@@ -272,6 +281,7 @@ def _serialize_discussion_thread(thread):
         "body": thread.body,
         "status": thread.status,
         "is_pinned": thread.is_pinned,
+        "visibility": thread.visibility,
         "author_user_id": thread.author_user_id,
         "author_name": author.full_name if author else None,
         "published_at": thread.published_at.isoformat() if thread.published_at else None,
@@ -1024,9 +1034,10 @@ def teacher_resources():
     resources = (
         Resource.query.filter(
             (Resource.uploader_user_id == current_user.id)
+            | (Resource.visibility.in_(("school", "teachers")))
             | (
                 Resource.section_id.in_(section_ids)
-                & (Resource.visibility.in_(("section", "school")))
+                & (Resource.visibility.in_(("section", "school", "teachers")))
             )
         )
         .order_by(Resource.created_at.desc())
@@ -1042,6 +1053,56 @@ def teacher_resources():
             "resources": [_serialize_resource(resource) for resource in resources],
         }
     )
+
+
+@teacher_bp.post("/resources/<int:resource_id>/publish-to-section")
+@role_required("teacher")
+def publish_library_resource_to_section(resource_id):
+    source = db.session.get(Resource, resource_id)
+    if not source:
+        return jsonify({"message": "Resource not found."}), 404
+
+    payload = request.get_json(silent=True) or {}
+    section_id = payload.get("section_id")
+    if not section_id:
+        return jsonify({"message": "Section is required."}), 400
+
+    section_id = int(section_id)
+    _, error_response = _teacher_section_or_404(section_id)
+    if error_response:
+        return error_response
+
+    allowed_section_ids = set(_teacher_section_ids())
+    visible_to_teacher = (
+        source.uploader_user_id == current_user.id
+        or source.visibility in {"school", "teachers"}
+        or source.section_id in allowed_section_ids
+    )
+    if not visible_to_teacher:
+        return jsonify({"message": "You do not have access to this resource."}), 403
+
+    title = (payload.get("title") or source.title).strip()
+    if not title:
+        return jsonify({"message": "Title is required."}), 400
+
+    resource = Resource(
+        uploader_user_id=current_user.id,
+        section_id=section_id,
+        title=title,
+        category=source.category,
+        file_path=source.file_path,
+        visibility="section",
+    )
+    db.session.add(resource)
+    db.session.commit()
+    write_audit_log(
+        user_id=current_user.id,
+        action="teacher.resource.publish_from_library",
+        entity_type="resource",
+        entity_id=resource.id,
+        meta_json={"source_resource_id": source.id, "section_id": section_id, "title": title},
+    )
+    return jsonify({"resource": _serialize_resource(resource)}), 201
 
 
 @teacher_bp.post("/resources")
@@ -1084,8 +1145,7 @@ def update_teacher_resource(resource_id):
 
     allowed_section_ids = set(_teacher_section_ids())
     owns_resource = resource.uploader_user_id == current_user.id
-    visible_section = resource.section_id in allowed_section_ids if resource.section_id else owns_resource
-    if not owns_resource and not visible_section:
+    if not owns_resource:
         return jsonify({"message": "You do not have access to this resource."}), 403
 
     payload = request.get_json(silent=True) or {}
@@ -1190,12 +1250,24 @@ def get_teacher_class_workspace(section_id):
         .all()
     )
     announcements = (
-        Announcement.query.filter_by(section_id=section.id)
+        Announcement.query.filter(
+            (Announcement.section_id == section.id)
+            | (
+                (Announcement.visibility == "school")
+                & (Announcement.author_user_id == current_user.id)
+            )
+        )
         .order_by(Announcement.created_at.desc())
         .all()
     )
     discussion_threads = (
-        DiscussionThread.query.filter_by(section_id=section.id)
+        DiscussionThread.query.filter(
+            (DiscussionThread.section_id == section.id)
+            | (
+                (DiscussionThread.visibility == "school")
+                & (DiscussionThread.author_user_id == current_user.id)
+            )
+        )
         .order_by(DiscussionThread.is_pinned.desc(), DiscussionThread.created_at.desc())
         .all()
     )
@@ -1547,6 +1619,7 @@ def create_teacher_discussion_thread(section_id):
         body=payload["body"],
         status=status,
         is_pinned=bool(payload.get("is_pinned", False)),
+        visibility=payload.get("visibility", "section"),
         published_at=_announcement_status_to_published_at(status),
     )
     db.session.add(thread)
@@ -1556,7 +1629,12 @@ def create_teacher_discussion_thread(section_id):
         action="teacher.discussion.create",
         entity_type="discussion_thread",
         entity_id=thread.id,
-        meta_json={"section_id": section.id, "status": status, "is_pinned": thread.is_pinned},
+        meta_json={
+            "section_id": section.id,
+            "status": status,
+            "is_pinned": thread.is_pinned,
+            "visibility": thread.visibility,
+        },
     )
     return jsonify({"thread": _serialize_discussion_thread(thread)}), 201
 
@@ -1583,6 +1661,8 @@ def update_teacher_discussion_thread(section_id, thread_id):
         thread.body = payload["body"]
     if "is_pinned" in payload:
         thread.is_pinned = bool(payload["is_pinned"])
+    if "visibility" in payload:
+        thread.visibility = payload["visibility"]
     if "status" in payload:
         thread.status = _normalize_status(payload["status"])
         thread.published_at = _announcement_status_to_published_at(payload["status"])
@@ -1667,13 +1747,13 @@ def review_teacher_submission(section_id, submission_id):
             student_user_id=submission.student_user_id,
             score=raw_score,
             percentage=percentage,
-            remarks="Needs intervention" if float(percentage) < 74 else "Passing",
+            remarks="Needs support" if float(percentage) < 74 else "Passing",
         )
         db.session.add(grade)
     else:
         grade.score = raw_score
         grade.percentage = percentage
-        grade.remarks = "Needs intervention" if float(percentage) < 74 else "Passing"
+        grade.remarks = "Needs support" if float(percentage) < 74 else "Passing"
 
     intervention = Intervention.query.filter_by(
         section_id=section.id,

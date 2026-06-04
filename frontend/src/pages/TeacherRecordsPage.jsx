@@ -18,7 +18,7 @@ function getStudentRecordState(student) {
 
   if (latest.percentage < 74) {
     return {
-      label: "At risk",
+      label: "Below mastery",
       className: "teacher-record-pill teacher-record-pill--risk",
       percentage: latest.percentage,
     };
@@ -65,11 +65,11 @@ export default function TeacherRecordsPage() {
     <TeacherPageShell
       badge="Teacher Records"
       title="Manage class records"
-      description="Per-class grade visibility with pass and at-risk signals for each enrolled student."
+      description="Per-class grade visibility with pass and below-mastery signals for each enrolled student."
       metrics={[
         { label: "Classes", value: summary?.classes ?? "-", caption: "Classes represented in the records view" },
         { label: "Assignments", value: summary?.assignments ?? "-", caption: "Assessments contributing to records" },
-        { label: "Open Interventions", value: summary?.open_interventions ?? "-", caption: "Students still below mastery" },
+        { label: "Support Watch", value: summary?.open_interventions ?? "-", caption: "Students still below mastery" },
         { label: "Pending Grades", value: derived.pending, caption: "Students still waiting for a graded result" },
       ]}
     >
@@ -117,7 +117,7 @@ export default function TeacherRecordsPage() {
           key={record.section_id}
           eyebrow="Class Record"
           title={record.section_name}
-          description="Student grades are grouped by class so the teacher can quickly spot pass or at-risk patterns."
+          description="Student grades are grouped by class so the teacher can quickly spot pass or below-mastery patterns."
         >
           <div className="teacher-record-summary-grid">
             <div>
@@ -125,7 +125,7 @@ export default function TeacherRecordsPage() {
               <span>{(record.students || []).length}</span>
             </div>
             <div>
-              <strong>At-risk learners</strong>
+              <strong>Below mastery</strong>
               <span>
                 {(record.students || []).filter((student) => {
                   const latest = (student.grades || []).slice(-1)[0];
@@ -177,7 +177,7 @@ export default function TeacherRecordsPage() {
                   <p className="teacher-record-ledger-card__note">
                     {latest
                       ? latest.percentage < 74
-                        ? "Keep this learner on the intervention watchlist."
+                        ? "Keep this learner on the support watchlist."
                         : "Current performance is above mastery."
                       : "This learner still needs an initial graded result."}
                   </p>

@@ -26,7 +26,7 @@ export default function TeacherClassesPage() {
         <>
           <span>{classes.length} assigned classes</span>
           <span>{classes.reduce((sum, item) => sum + (item.student_count || 0), 0)} students</span>
-          <span>{classes.reduce((sum, item) => sum + (item.at_risk_students || 0), 0)} at risk</span>
+          <span>{classes.reduce((sum, item) => sum + (item.at_risk_students || 0), 0)} support watch</span>
         </>
       }
       metrics={[
@@ -37,9 +37,9 @@ export default function TeacherClassesPage() {
           caption: "Across current sections",
         },
         {
-          label: "At-Risk Students",
+          label: "Support Watch",
           value: classes.reduce((sum, item) => sum + (item.at_risk_students || 0), 0) || "-",
-          caption: "Open intervention counts",
+          caption: "Open support counts",
         },
       ]}
     >
@@ -71,7 +71,7 @@ export default function TeacherClassesPage() {
                 </div>
                 <div>
                   <strong>{section.at_risk_students}</strong>
-                  <span>At risk</span>
+                  <span>Below mastery</span>
                 </div>
               </div>
               <p className="teacher-class-card__subjects">

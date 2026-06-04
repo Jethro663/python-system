@@ -23,7 +23,7 @@ export default function AdminDashboardPage() {
     { label: "Students", value: totals?.students ?? "-", caption: "Learner records" },
     { label: "Teachers", value: totals?.teachers ?? "-", caption: "Instruction-side accounts" },
     { label: "Roster Records", value: totals?.roster_records ?? "-", caption: "Imported rows" },
-    { label: "Active Interventions", value: totals?.active_interventions ?? "-", caption: "Open support cases" },
+    { label: "Active Support", value: totals?.active_interventions ?? "-", caption: "Open support cases" },
   ];
   const quickRoutes = useMemo(
     () => [
@@ -45,7 +45,7 @@ export default function AdminDashboardPage() {
       {
         to: "/admin/settings",
         label: "System Settings",
-        copy: `${totals?.active_interventions ?? 0} live interventions tied to current policies`,
+        copy: `${totals?.active_interventions ?? 0} active support items tied to current policies`,
       },
     ],
     [totals?.active_interventions, totals?.roster_records, totals?.sections, totals?.users],
@@ -59,7 +59,7 @@ export default function AdminDashboardPage() {
       detail: "CSV-backed student load status",
     },
     {
-      label: "Intervention Watch",
+      label: "Support Watch",
       status: totals?.active_interventions ? "Attention" : "Stable",
       detail: "Below-threshold learner monitoring",
     },
@@ -69,13 +69,13 @@ export default function AdminDashboardPage() {
     <AdminPageShell
       badge="Admin Dashboard"
       title="School setup status at a glance"
-      description="This mirrors the capstone's admin-first flow: users, sections, rosters, interventions, and recent system movement before teacher operations."
+      description="This mirrors the capstone's admin-first flow: users, sections, rosters, learner support, and recent system movement before teacher operations."
       icon={ShieldCheck}
       meta={
         <>
           <span>Setup readiness</span>
           <span>{totals?.sections ?? 0} mapped sections</span>
-          <span>{totals?.active_interventions ?? 0} live interventions</span>
+          <span>{totals?.active_interventions ?? 0} active support items</span>
         </>
       }
       metrics={metrics}

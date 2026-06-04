@@ -10,8 +10,19 @@ const SECTION_FORM = {
   school_year: "2026-2027",
   schedule_text: "",
   adviser_user_id: "",
-  teacher_assignments: [{ teacher_user_id: "", subject_name: "Mathematics" }],
+  teacher_assignments: [{ row_id: "new-1", teacher_user_id: "", subject_name: "Mathematics" }],
 };
+
+function createTeacherAssignmentRow(assignment = {}, index = 0) {
+  return {
+    row_id:
+      assignment.row_id ||
+      assignment.id ||
+      `${assignment.teacher_user_id || "teacher"}-${assignment.subject_name || "subject"}-${index}`,
+    teacher_user_id: assignment.teacher_user_id ? String(assignment.teacher_user_id) : "",
+    subject_name: assignment.subject_name || "Mathematics",
+  };
+}
 
 function createSectionEditForm(section) {
   return {
@@ -22,11 +33,8 @@ function createSectionEditForm(section) {
     adviser_user_id: section.adviser_user_id ? String(section.adviser_user_id) : "",
     teacher_assignments:
       section.teacher_assignments?.length
-        ? section.teacher_assignments.map((assignment) => ({
-            teacher_user_id: assignment.teacher_user_id ? String(assignment.teacher_user_id) : "",
-            subject_name: assignment.subject_name || "Mathematics",
-          }))
-        : [{ teacher_user_id: "", subject_name: "Mathematics" }],
+        ? section.teacher_assignments.map(createTeacherAssignmentRow)
+        : [createTeacherAssignmentRow({ row_id: "new-1" })],
     status: section.status || "active",
   };
 }
@@ -45,10 +53,16 @@ function getTeacherName(teachers, teacherId) {
 }
 
 function TeacherAssignmentFields({ assignments, teachers, onChange }) {
+  const makeNewAssignment = () => ({
+    row_id: `new-${Date.now()}-${assignments.length}`,
+    teacher_user_id: "",
+    subject_name: "Mathematics",
+  });
+
   return (
     <div className="admin-assignment-stack">
       {assignments.map((assignment, index) => (
-        <div className="admin-assignment-card" key={`${index}-${assignment.teacher_user_id}-${assignment.subject_name}`}>
+        <div className="admin-assignment-card" key={assignment.row_id || index}>
           <div className="admin-assignment-card__header">
             <strong>Teacher Mapping {index + 1}</strong>
             <span>Route a subject lane to a teacher before the section goes live.</span>
@@ -99,7 +113,7 @@ function TeacherAssignmentFields({ assignments, teachers, onChange }) {
                 onChange(
                   assignments.filter((_, itemIndex) => itemIndex !== index).length
                     ? assignments.filter((_, itemIndex) => itemIndex !== index)
-                    : [{ teacher_user_id: "", subject_name: "Mathematics" }]
+                    : [makeNewAssignment()]
                 )
               }
             >
@@ -112,9 +126,7 @@ function TeacherAssignmentFields({ assignments, teachers, onChange }) {
       <button
         className="secondary-button"
         type="button"
-        onClick={() =>
-          onChange([...assignments, { teacher_user_id: "", subject_name: "Mathematics" }])
-        }
+        onClick={() => onChange([...assignments, makeNewAssignment()])}
       >
         Add teacher mapping
       </button>

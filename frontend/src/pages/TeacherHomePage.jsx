@@ -19,14 +19,14 @@ export default function TeacherHomePage() {
   return (
     <TeacherPageShell
       badge="Teacher Dashboard"
-      title="Assigned classes, flagged students, and next actions"
+      title="Assigned classes, student support, and next actions"
       description="The teacher shell now mirrors the main reference direction more closely: class pressure up top, quick workspace entry, and a cleaner assessment-first rhythm."
       icon={BarChart3}
       headerMeta={
         <>
           <span>{data?.summary.assigned_sections ?? 0} live classes</span>
           <span>{data?.summary.pending_submissions ?? 0} pending reviews</span>
-          <span>{data?.summary.at_risk_students ?? 0} intervention watch</span>
+          <span>{data?.summary.at_risk_students ?? 0} support watch</span>
         </>
       }
       metrics={[
@@ -34,7 +34,7 @@ export default function TeacherHomePage() {
         { label: "Enrolled Students", value: data?.summary.enrolled_students ?? "-", caption: "Across your sections" },
         { label: "Draft Assignments", value: data?.summary.draft_assignments ?? "-", caption: "Still unpublished" },
         { label: "Pending Submissions", value: data?.summary.pending_submissions ?? "-", caption: "Waiting for review" },
-        { label: "At-Risk Students", value: data?.summary.at_risk_students ?? "-", caption: "Open intervention cases" },
+        { label: "Support Watch", value: data?.summary.at_risk_students ?? "-", caption: "Open support cases" },
         { label: "Upcoming Events", value: data?.summary.upcoming_events ?? "-", caption: "Calendar load" },
       ]}
     >
@@ -66,7 +66,7 @@ export default function TeacherHomePage() {
                   </div>
                   <div>
                     <strong>{section.at_risk_students}</strong>
-                    <span>At risk</span>
+                    <span>Below mastery</span>
                   </div>
                 </div>
                 <div className="teacher-event-stack">
@@ -109,7 +109,7 @@ export default function TeacherHomePage() {
               <span>Unpublished work that still needs a classroom release decision.</span>
             </article>
             <article className="teacher-alert-card">
-              <p className="teacher-alert-card__label">Intervention Watch</p>
+              <p className="teacher-alert-card__label">Support Watch</p>
               <strong>{data?.summary.at_risk_students ?? 0}</strong>
               <span>Learners currently below the mastery threshold.</span>
             </article>

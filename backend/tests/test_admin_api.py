@@ -196,6 +196,47 @@ def test_admin_can_update_users_status_and_password():
         )
 
 
+def test_admin_can_delete_archived_user_only():
+    app = create_app(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+        }
+    )
+
+    with app.app_context():
+        db.create_all()
+        admin = create_user("admin", "admin@example.com", "A-001")
+        student = create_user("student", "student.delete@example.com", "S-DELETE")
+        admin_id = admin.id
+        student_id = student.id
+
+    client = app.test_client()
+    login_as(client, "admin@example.com")
+
+    active_delete_response = client.delete(f"/api/admin/users/{student_id}")
+    assert active_delete_response.status_code == 400
+    assert active_delete_response.get_json()["message"] == "Archive the user before deleting them."
+
+    self_delete_response = client.delete(f"/api/admin/users/{admin_id}")
+    assert self_delete_response.status_code == 400
+    assert self_delete_response.get_json()["message"] == "You cannot delete your own account."
+
+    archive_response = client.post(
+        f"/api/admin/users/{student_id}/status",
+        json={"status": "inactive"},
+    )
+    assert archive_response.status_code == 200
+
+    delete_response = client.delete(f"/api/admin/users/{student_id}")
+    assert delete_response.status_code == 200
+    assert delete_response.get_json()["message"] == "User deleted."
+
+    with app.app_context():
+        assert db.session.get(User, student_id) is None
+        assert AuditLog.query.filter_by(action="admin.user.delete", entity_id=student_id).count() == 1
+
+
 def test_admin_can_update_and_archive_sections():
     app = create_app(
         {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet, ShieldCheck, Upload, Users } from "lucide-react";
+import { Download, FileSpreadsheet, ShieldCheck, Upload, Users } from "lucide-react";
 
 import { AdminPageShell, AdminSectionCard } from "../components/admin/AdminPageShell";
 import { adminApi } from "../lib/api";
@@ -24,6 +24,25 @@ export default function AdminRosterImportPage() {
     () => sections.find((section) => String(section.id) === String(sectionId)) || null,
     [sections, sectionId]
   );
+
+  const downloadTemplate = async () => {
+    setError("");
+    setSuccess("");
+    try {
+      const blob = await adminApi.downloadRosterTemplate();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "nexora-roster-template.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setSuccess("Roster template downloaded.");
+    } catch (downloadError) {
+      setError(downloadError.message);
+    }
+  };
 
   return (
     <AdminPageShell
@@ -59,6 +78,11 @@ export default function AdminRosterImportPage() {
               </div>
             </article>
           </div>
+
+          <button className="secondary-button" type="button" onClick={downloadTemplate}>
+            <Download size={16} />
+            Download CSV template
+          </button>
 
           <div className="form-grid">
             <label className="field">

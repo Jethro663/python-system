@@ -86,7 +86,7 @@ export default function TeacherPerformancePage() {
       <TeacherSectionCard
         eyebrow="Section Summary"
         title="Class averages"
-        description="Per-class averages and at-risk counts act as the simplified performance overview."
+        description="Per-class averages and below-mastery counts act as the simplified performance overview."
       >
         <div className="teacher-performance-grid">
           {(report?.section_summaries || []).map((item) => (
@@ -111,13 +111,13 @@ export default function TeacherPerformancePage() {
                   <span>{item.assignment_count}</span>
                 </div>
                 <div>
-                  <strong>At risk</strong>
+                  <strong>Below mastery</strong>
                   <span>{item.at_risk_count}</span>
                 </div>
                 <div>
                   <strong>Reading</strong>
                   <span>
-                    {item.at_risk_count ? "Needs intervention watch" : "Stable class pulse"}
+                    {item.at_risk_count ? "Needs support watch" : "Stable class pulse"}
                   </span>
                 </div>
               </div>
@@ -156,7 +156,7 @@ export default function TeacherPerformancePage() {
               </div>
 
               <p className="teacher-performance-trend-card__note">
-                Use this to see which assignments are dragging class averages down before posting interventions.
+                Use this to see which assignments are dragging class averages down before planning follow-up.
               </p>
             </article>
           ))}
@@ -193,7 +193,7 @@ export default function TeacherPerformancePage() {
               </div>
 
               <p className="teacher-performance-alert-card__note">
-                Prioritize this learner for re-check, feedback, or intervention follow-through.
+                Prioritize this learner for re-check, feedback, or support follow-through.
               </p>
             </article>
           ))}

@@ -253,6 +253,7 @@ class DiscussionThread(TimestampMixin, db.Model):
     body = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(50), nullable=False, default="draft")
     is_pinned = db.Column(db.Boolean, nullable=False, default=False)
+    visibility = db.Column(db.String(50), nullable=False, default="section")
     published_at = db.Column(db.DateTime, nullable=True)
 
 

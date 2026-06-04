@@ -9,9 +9,6 @@ const DEFAULT_FILTERS = {
   assignment_id: "",
   submission_status: "",
   student_query: "",
-  score_band: "",
-  min_percentage: "",
-  max_percentage: "",
 };
 
 export default function TeacherReportsPage() {
@@ -39,7 +36,6 @@ export default function TeacherReportsPage() {
       { label: "Classes", value: summary?.classes ?? "-", caption: "Classes in this filtered report" },
       { label: "Assignments", value: summary?.assignments ?? "-", caption: "Assessment workload in scope" },
       { label: "Submissions", value: summary?.submissions ?? "-", caption: "Filtered student work rows" },
-      { label: "Open Interventions", value: summary?.open_interventions ?? "-", caption: "Students still flagged" },
     ],
     [summary]
   );
@@ -54,7 +50,6 @@ export default function TeacherReportsPage() {
         <>
           <span>{summary?.classes ?? 0} classes</span>
           <span>{summary?.submissions ?? 0} submissions</span>
-          <span>{summary?.open_interventions ?? 0} open interventions</span>
         </>
       }
       metrics={metrics}
@@ -91,7 +86,7 @@ export default function TeacherReportsPage() {
         <TeacherSectionCard
           eyebrow="Report Filters"
           title="Refine the report view"
-          description="Slice by class, assignment, student name or ID, submission status, score band, and percentage range."
+          description="Slice by class, assignment, student name or ID, and submission status."
         actions={
           <button
             className="secondary-button"
@@ -169,43 +164,6 @@ export default function TeacherReportsPage() {
                 </option>
               ))}
             </select>
-          </label>
-          <label className="field">
-            <span>Score band</span>
-            <select
-              name="report_score_band"
-              value={filters.score_band}
-              onChange={(event) =>
-                setFilters((current) => ({ ...current, score_band: event.target.value }))
-              }
-            >
-              <option value="">All scores</option>
-              <option value="at_risk">Below 74%</option>
-              <option value="passing">74% and above</option>
-              <option value="high">90% and above</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>Min %</span>
-            <input
-              name="report_min_percentage"
-              type="number"
-              value={filters.min_percentage}
-              onChange={(event) =>
-                setFilters((current) => ({ ...current, min_percentage: event.target.value }))
-              }
-            />
-          </label>
-          <label className="field">
-            <span>Max %</span>
-            <input
-              name="report_max_percentage"
-              type="number"
-              value={filters.max_percentage}
-              onChange={(event) =>
-                setFilters((current) => ({ ...current, max_percentage: event.target.value }))
-              }
-            />
           </label>
           <button className="primary-button" type="submit">
             Apply filters
@@ -289,41 +247,6 @@ export default function TeacherReportsPage() {
           ))}
           {!report?.submission_summaries?.length ? (
             <p className="empty-state">No submissions matched the current filter set.</p>
-          ) : null}
-        </div>
-      </TeacherSectionCard>
-
-      <TeacherSectionCard
-        eyebrow="Interventions"
-        title="At-risk students"
-        description="Filtered intervention queue with section and teacher notes."
-      >
-        <div className="teacher-intervention-list">
-          {(report?.intervention_list || []).map((item) => (
-            <article className="teacher-intervention-card" key={item.id}>
-              <div className="teacher-intervention-card__header">
-                <div>
-                  <strong>{item.student_name || item.student_user_id}</strong>
-                  <span>{item.section_name || item.section_id}</span>
-                </div>
-                <span className={`teacher-intervention-card__status teacher-intervention-card__status--${item.status}`}>
-                  {item.status}
-                </span>
-              </div>
-              <div className="teacher-intervention-card__body">
-                <div>
-                  <strong>Trigger</strong>
-                  <span>{item.trigger_score}</span>
-                </div>
-                <div>
-                  <strong>Teacher note</strong>
-                  <span>{item.teacher_note || "-"}</span>
-                </div>
-              </div>
-            </article>
-          ))}
-          {!report?.intervention_list?.length ? (
-            <p className="empty-state">No intervention rows matched the current filter set.</p>
           ) : null}
         </div>
       </TeacherSectionCard>

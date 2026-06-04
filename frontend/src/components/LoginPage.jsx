@@ -21,7 +21,7 @@ const QUICK_ACCESS = [
     label: "Teacher",
     email: "teacher.demo@nexora.local",
     password: "Teacher123!",
-    note: "Classes, grading, and interventions",
+    note: "Classes, grading, and learner support",
   },
   {
     label: "Student",

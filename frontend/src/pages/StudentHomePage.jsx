@@ -26,7 +26,7 @@ export default function StudentHomePage() {
         <>
           <span>{data?.summary.enrolled_sections ?? 0} active classes</span>
           <span>{data?.summary.pending_assignments ?? 0} pending tasks</span>
-          <span>{data?.summary.intervention_required ? "intervention active" : "on track"}</span>
+          <span>{data?.summary.intervention_required ? "support active" : "on track"}</span>
         </>
       }
       metrics={[
@@ -34,7 +34,7 @@ export default function StudentHomePage() {
         { label: "Published Assignments", value: data?.summary.published_assignments ?? "-", caption: "Visible teacher work" },
         { label: "Pending Assignments", value: data?.summary.pending_assignments ?? "-", caption: "Still waiting on a submission" },
         { label: "Announcements", value: data?.summary.announcements ?? "-", caption: "Published class updates" },
-        { label: "Intervention Required", value: data?.summary.intervention_required ? "Yes" : "No", caption: "Mastery follow-up state" },
+        { label: "Support Required", value: data?.summary.intervention_required ? "Yes" : "No", caption: "Mastery follow-up state" },
       ]}
     >
 
@@ -44,7 +44,7 @@ export default function StudentHomePage() {
         <StudentSectionCard
           eyebrow="My Sections"
           title="Open a class to view modules, assignments, and announcements"
-          description="Each section is the student-facing workspace for content, discussions, resources, and interventions."
+          description="Each section is the student-facing workspace for content, discussions, resources, and support."
         >
           <div className="student-course-grid">
             {(data?.sections || []).map((section) => (

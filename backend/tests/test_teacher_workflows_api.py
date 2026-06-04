@@ -317,7 +317,7 @@ def test_teacher_class_workspace_and_publish_flows():
         json={
             "raw_score": 18,
             "percentage": 72,
-            "feedback": "Needs intervention",
+            "feedback": "Needs support",
         },
     )
     assert review_response.status_code == 200
@@ -656,7 +656,7 @@ def test_teacher_can_manage_roster_uploads_and_performance_views():
                     student_user_id=enrolled_student.id,
                     score=14,
                     percentage=70,
-                    remarks="Needs intervention",
+                    remarks="Needs support",
                 )
             )
             db.session.add(

@@ -17,7 +17,7 @@ export default function AdminStudentsPage() {
 
   const summary = useMemo(
     () => ({
-      intervention: students.filter((student) => student.intervention_status === "required").length,
+      support: students.filter((student) => student.intervention_status === "required").length,
       unassigned: students.filter((student) => !student.current_section).length,
       graded: students.filter(
         (student) => student.latest_percentage !== null && student.latest_percentage !== undefined
@@ -30,10 +30,10 @@ export default function AdminStudentsPage() {
     <AdminPageShell
       badge="Student Records"
       title="Profiles, enrollment, and latest grade signals"
-      description="This surface keeps the admin-first view of student assignment, section placement, and intervention pressure."
+      description="This surface keeps the admin-first view of student assignment, section placement, and below-mastery support."
       metrics={[
         { label: "Students", value: students.length || "-", caption: "Visible learner records" },
-        { label: "Needs Intervention", value: summary.intervention, caption: "Currently flagged students" },
+        { label: "Needs Support", value: summary.support, caption: "Currently flagged students" },
         { label: "Unassigned", value: summary.unassigned, caption: "Learners without a current section" },
         { label: "With Grades", value: summary.graded, caption: "Learners already carrying a latest percentage" },
       ]}
@@ -41,7 +41,7 @@ export default function AdminStudentsPage() {
       <AdminSectionCard
         eyebrow="Access Student Records"
         title="Student roster pulse"
-        description="Track section placement, latest grade signals, and intervention status from one admin view."
+        description="Track section placement, latest grade signals, and support status from one admin view."
         action={<span className="admin-tag-chip">Roster pulse</span>}
       >
         {error ? <div className="form-error">{error}</div> : null}
@@ -57,8 +57,8 @@ export default function AdminStudentsPage() {
           <article className="admin-student-pulse-card">
             <AlertTriangle size={18} />
             <div>
-              <strong>{summary.intervention}</strong>
-              <span>students with an active intervention requirement</span>
+              <strong>{summary.support}</strong>
+              <span>students with an active support requirement</span>
             </div>
           </article>
           <article className="admin-student-pulse-card">
@@ -114,8 +114,8 @@ export default function AdminStudentsPage() {
 
               <p className="admin-student-card__note">
                 {student.intervention_status === "required"
-                  ? "This learner is currently surfacing in the intervention lane."
-                  : "No active intervention flag is blocking this learner right now."}
+                  ? "This learner is currently surfacing in the support lane."
+                  : "No active support flag is blocking this learner right now."}
               </p>
             </article>
           ))}

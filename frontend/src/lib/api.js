@@ -147,6 +147,11 @@ export const adminApi = {
       body: JSON.stringify(payload),
     });
   },
+  deleteUser(userId) {
+    return apiFetch(`/api/admin/users/${userId}`, {
+      method: "DELETE",
+    });
+  },
   sections() {
     return apiFetch("/api/admin/sections");
   },
@@ -188,6 +193,15 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  },
+  async downloadRosterTemplate() {
+    const response = await fetch("/api/admin/rosters/template", {
+      credentials: "include",
+    });
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+    return response.blob();
   },
 };
 
@@ -252,6 +266,12 @@ export const teacherApi = {
   updateResource(resourceId, payload) {
     return apiFetch(`/api/teacher/resources/${resourceId}`, {
       method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+  publishResourceToSection(resourceId, payload) {
+    return apiFetch(`/api/teacher/resources/${resourceId}/publish-to-section`, {
+      method: "POST",
       body: JSON.stringify(payload),
     });
   },
